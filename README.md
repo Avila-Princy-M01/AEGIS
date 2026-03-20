@@ -1,5 +1,7 @@
 # 🛡️ AEGIS — Autonomous Wallet Guardian
 
+![Tests](https://img.shields.io/badge/tests-26%20passing-brightgreen) ![Python](https://img.shields.io/badge/python-3.11+-blue) ![License](https://img.shields.io/badge/license-MIT-green) ![Chains](https://img.shields.io/badge/chains-Ethereum%20%2B%20Base-purple)
+
 > **One command. Four AI agents. Real on-chain Uniswap V3 data. Zero Solidity.**
 
 AEGIS deploys 4 coordinated AI agents that **protect**, **grow**, **rebalance**, and **inherit** your Uniswap V3 LP positions — with **live on-chain integration** querying real pool state from Ethereum Mainnet and Base.
@@ -9,6 +11,19 @@ AEGIS deploys 4 coordinated AI agents that **protect**, **grow**, **rebalance**,
 ```
 
 → Four agents spawn. Real pool data flows. Your wallet is guarded.
+
+## ⚡ What Makes AEGIS Different?
+
+Most hackathon projects monitor one metric or solve one problem. AEGIS is different:
+
+| | Other Projects | AEGIS |
+|---|---|---|
+| **Data** | Simulated / mock data | **Live on-chain** — real `slot0()`, `feeGrowthGlobal`, `eth_gasPrice` |
+| **Scope** | Single-agent, single-problem | **4 coordinated agents** solving 4 distinct LP problems |
+| **Intelligence** | Static rules | **NLP-configured** strategies + agent reasoning logs explaining every decision |
+| **Resilience** | Single RPC, breaks on rate limit | **6 fallback RPCs** with automatic rotation on 429 errors |
+| **Chains** | Single chain | **Multi-chain** — Ethereum + Base with live switching |
+| **Lido** | No stETH support | **2 Lido pools** monitored (wstETH/ETH + stETH/ETH) |
 
 ## 📸 Demo
 
@@ -77,33 +92,34 @@ Supported chains:
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Natural Language Input                     │
-│  "Protect my positions, grow fees, 30-day dead man's switch" │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ NLP Parser (Groq LLM)
-                           ▼
-┌──────────────────────────────────────────────────────────────┐
-│                    AEGIS Orchestrator                         │
-│           + UniswapV3Client (web3.py) + Price History         │
-│                                                              │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐        │
-│  │ 🛡️ Guard │ │ 📈 Grow  │ │ 🎯Rebal  │ │ 🏛️Legacy │        │
-│  │  Agent   │ │  Agent   │ │  Agent   │ │  Agent   │        │
-│  │ (live IL)│ │(gas-fee) │ │ (range)  │ │ (timer)  │        │
-│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘        │
-│       │            │            │            │               │
-│       └────────────┼────────────┼────────────┘               │
-│                    │            │                             │
-│     ┌──────────────▼────────────▼─────────────┐              │
-│     │     Shared Memory (pub/sub)             │              │
-│     └─────────────────────────────────────────┘              │
-└──────────────────────────────────────────────────────────────┘
-          │                                    │
-          ▼                                    ▼
-   Uniswap V3 Pools                    PyVax Contracts
-   (Ethereum / Base)                  (Guard/Grow/Legacy Vaults)
+```mermaid
+flowchart TB
+    User["👤 User: Natural Language Command"] --> NLP["🧠 NLP Parser<br/>(Groq LLM)"]
+    NLP --> Orch["⚙️ AEGIS Orchestrator"]
+    Orch --> Guard["🛡️ Guard Agent<br/>Live IL + P&L"]
+    Orch --> Grow["📈 Grow Agent<br/>Gas-Aware Compounding"]
+    Orch --> Rebal["🎯 Rebalance Agent<br/>Range Detection"]
+    Orch --> Legacy["🏛️ Legacy Agent<br/>Dead Man's Switch"]
+    
+    Guard <--> Memory["💾 Shared Memory<br/>(pub/sub)"]
+    Grow <--> Memory
+    Rebal <--> Memory
+    Legacy <--> Memory
+    
+    Orch --> Uni["🦄 UniswapV3Client<br/>(web3.py)"]
+    Uni --> ETH["🟣 Ethereum<br/>5 pools"]
+    Uni --> BASE["🔵 Base<br/>1 pool"]
+    
+    Orch --> PyVax["📜 PyVax Contracts<br/>Guard/Grow/Legacy Vaults"]
+    
+    Orch --> Dash["📊 React Dashboard<br/>(WebSocket + REST)"]
+    
+    style Guard fill:#ef444420,stroke:#ef4444
+    style Grow fill:#10b98120,stroke:#10b981
+    style Rebal fill:#3b82f620,stroke:#3b82f6
+    style Legacy fill:#8b5cf620,stroke:#8b5cf6
+    style Memory fill:#f59e0b20,stroke:#f59e0b
+    style Uni fill:#ff007a20,stroke:#ff007a
 ```
 
 ## 🤖 The Four Agents
@@ -297,7 +313,7 @@ Built for the **Classified Hack × Synthesis Hackathon** ($75K in prizes)
 - **4-agent coordination** — agents react to each other through shared memory pub/sub
 - **Animated state transitions** — visual feedback when threats are detected or positions go out of range
 - **Lido wstETH/ETH pool monitoring** — qualifies for both Uniswap and Lido tracks
-- **21 passing tests** — `pytest tests/test_core.py -v`
+- **26 passing tests** — `pytest tests/test_core.py -v`
 
 ### Running Tests
 
@@ -341,6 +357,38 @@ aegis-uniswap/
             ├── CommandInput.tsx
             └── DemoControls.tsx
 ```
+
+## 🌐 Deployment
+
+### One-Click Deploy to Render (Free)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+
+1. Fork this repo
+2. Connect it on [dashboard.render.com](https://dashboard.render.com)
+3. Add environment variables: `GROQ_API_KEY`, `GROQ_API_KEY_2`
+4. Deploy — the app serves both backend + frontend from a single service
+
+### Manual Deploy
+
+```bash
+# Build frontend
+cd frontend && npm install && npm run build && cd ..
+
+# Start production server (serves API + frontend)
+python -m aegis.server
+```
+
+The server auto-detects `frontend/dist/` and serves the dashboard at the root URL.
+
+### Deploy to Other Platforms
+
+| Platform | Type | Config |
+|----------|------|--------|
+| **Render** | Web Service | `render.yaml` (included) |
+| **Railway** | Docker | `Procfile` (included) |
+| **Fly.io** | Docker | `fly launch` → uses Procfile |
+| **Vercel** | Frontend only | Needs separate backend |
 
 ## 📄 License
 

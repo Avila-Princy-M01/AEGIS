@@ -7,6 +7,7 @@ into structured strategy parameters for the Guard, Grow, and Legacy agents.
 from __future__ import annotations
 
 import json
+import logging
 import os
 from decimal import Decimal
 from typing import Any
@@ -14,6 +15,8 @@ from typing import Any
 import httpx
 
 from aegis.config import AegisConfig, Beneficiary, GrowConfig, GuardConfig, LegacyConfig
+
+logger = logging.getLogger("aegis.nlp")
 
 SYSTEM_PROMPT = """You are AEGIS, an AI that parses natural language into DeFi protection strategies.
 
@@ -45,32 +48,57 @@ If no beneficiary address is given, use an empty list.
 Do NOT include any text outside the JSON object."""
 
 
+def _get_groq_keys(primary_key: str | None = None) -> list[str]:
+    """Collect all available Groq API keys for rotation."""
+    keys: list[str] = []
+    if primary_key:
+        keys.append(primary_key)
+    for env_var in ["GROQ_API_KEY", "GROQ_API_KEY_2", "GROQ_API_KEY_3"]:
+        k = os.environ.get(env_var, "")
+        if k and k not in keys:
+            keys.append(k)
+    return keys
+
+
 async def parse_command(command: str, api_key: str | None = None, model: str = "llama-3.3-70b-versatile") -> AegisConfig:
-    """Parse a natural language command into an AegisConfig."""
-    key = api_key or os.environ.get("GROQ_API_KEY", "")
-    if not key:
+    """Parse a natural language command into an AegisConfig.
+
+    Tries multiple Groq API keys on rate-limit (429) errors.
+    """
+    keys = _get_groq_keys(api_key)
+    if not keys:
         return _fallback_parse(command)
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-            json={
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": command},
-                ],
-                "max_tokens": 1024,
-                "temperature": 0.1,
-            },
-        )
-        resp.raise_for_status()
-        data = resp.json()
+    for key in keys:
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                    json={
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": command},
+                        ],
+                        "max_tokens": 1024,
+                        "temperature": 0.1,
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
 
-    text = data["choices"][0]["message"]["content"].strip()
-    parsed = _extract_json(text)
-    return _dict_to_config(parsed)
+            text = data["choices"][0]["message"]["content"].strip()
+            parsed = _extract_json(text)
+            return _dict_to_config(parsed)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 429:
+                logger.warning("Groq rate-limited on key ...%s — trying next key", key[-4:])
+                continue
+            raise
+
+    logger.warning("All Groq API keys exhausted — falling back to keyword parser")
+    return _fallback_parse(command)
 
 
 def _extract_json(text: str) -> dict[str, Any]:

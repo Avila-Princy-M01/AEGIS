@@ -15,7 +15,7 @@ export function LegacyPanel({ status }: Props) {
 
   return (
     <div className={`panel legacy-panel ${status.inheritance_triggered ? 'triggered' : ''} ${animClass}`}>
-      <div className="panel-header">
+      <div className="panel-header" style={{ marginBottom: '0.75rem' }}>
         <div
           className="panel-icon"
           style={{ background: status.inheritance_triggered ? '#ef4444' : '#8b5cf6' }}

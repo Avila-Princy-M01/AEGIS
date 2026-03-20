@@ -42,10 +42,16 @@ class AegisOrchestrator:
         self._block_number: int = 0
         self._gas_price_gwei: str = "0"
         self._eth_price: str = "0"
+        self._rpc_status: str = "disconnected"
+        self._rpc_failures: int = 0
 
     @property
     def status(self) -> dict[str, Any]:
         live = self.uniswap.live if self.uniswap else False
+        rpc_provider = ""
+        if self.uniswap and hasattr(self.uniswap, '_rpc_urls') and self.uniswap._rpc_urls:
+            url = self.uniswap._rpc_urls[self.uniswap._rpc_index]
+            rpc_provider = url.split("//")[-1].split("/")[0]
         return {
             "started": self._started,
             "live_data": live,
@@ -55,6 +61,8 @@ class AegisOrchestrator:
             "block_number": self._block_number,
             "gas_price_gwei": self._gas_price_gwei,
             "eth_price": self._eth_price,
+            "rpc_status": self._rpc_status,
+            "rpc_provider": rpc_provider,
             "agents": {
                 "guard": self.guard.status if self.guard else None,
                 "grow": self.grow.status if self.grow else None,
@@ -166,6 +174,11 @@ class AegisOrchestrator:
 
         await self.stop()
 
+        self._price_history = []
+        self._eth_price = "0"
+        self._block_number = 0
+        self._gas_price_gwei = "0"
+
         self.config.chain.chain = chain
         alchemy_key = self.config.chain.alchemy_api_key or os.environ.get("ALCHEMY_API_KEY", "")
 
@@ -221,10 +234,16 @@ class AegisOrchestrator:
                     block = await self.uniswap.get_block_number()
                     if block > 0:
                         self._block_number = block
+                        self._rpc_failures = 0
+                        self._rpc_status = "connected"
                     gas = await self.uniswap.get_gas_price_gwei()
                     if gas > 0:
                         self._gas_price_gwei = str(gas)
                 except Exception:
-                    pass
+                    self._rpc_failures += 1
+                    if self._rpc_failures >= 3:
+                        self._rpc_status = "error"
+                    else:
+                        self._rpc_status = "reconnecting"
 
             await asyncio.sleep(3)

@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react'
 import type { GuardStatus, PricePoint } from '../types'
 import { PriceChart } from './PriceChart'
+import { AnimatedNumber } from './AnimatedNumber'
 
 interface Props {
   status: GuardStatus | null
@@ -17,7 +19,6 @@ export function GuardPanel({ status, priceHistory = [] }: Props) {
 
   const threatColor = THREAT_COLORS[status.threat_level] ?? '#6b7280'
   const isLive = status.live_data ?? false
-
   const animClass = status.threat_level === 'critical' ? 'anim-threat-flash' : ''
 
   return (
@@ -33,25 +34,8 @@ export function GuardPanel({ status, priceHistory = [] }: Props) {
         </div>
       </div>
 
-      <div className="data-source-badge" style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.4rem',
-        padding: '0.3rem 0.6rem',
-        borderRadius: '6px',
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        marginBottom: '0.75rem',
-        background: isLive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-        border: `1px solid ${isLive ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.25)'}`,
-        color: isLive ? '#10b981' : '#f59e0b',
-      }}>
-        <span style={{
-          width: 6, height: 6, borderRadius: '50%',
-          background: isLive ? '#10b981' : '#f59e0b',
-          boxShadow: isLive ? '0 0 6px rgba(16,185,129,0.5)' : 'none',
-          animation: isLive ? 'pulse-dot 2s ease-in-out infinite' : 'none',
-        }} />
+      <div className={`data-source-badge ${isLive ? 'live' : 'simulated'}`}>
+        <span className="badge-dot" />
         {isLive ? `LIVE · ${status.chain?.toUpperCase() ?? 'ETH'}` : 'SIMULATED'}
         {status.token_pair && (
           <span style={{ color: '#8888a0', marginLeft: '0.25rem' }}>
@@ -61,14 +45,18 @@ export function GuardPanel({ status, priceHistory = [] }: Props) {
       </div>
 
       <div className="panel-stats">
-        <StatItem label="ETH Price" value={`$${parseFloat(status.last_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
-        <StatItem label="Position Value" value={`$${parseFloat(status.position_value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
-        <StatItem
-          label="Impermanent Loss"
-          value={`${parseFloat(status.impermanent_loss_pct).toFixed(2)}%`}
-          warn={parseFloat(status.impermanent_loss_pct) > 5}
-        />
-        <StatItem label="Auto-Exit" value={status.config?.auto_exit ? '✅ ON' : '❌ OFF'} />
+        <StatItem label="ETH Price">
+          <AnimatedNumber value={parseFloat(status.last_price)} prefix="$" decimals={2} />
+        </StatItem>
+        <StatItem label="Position Value">
+          <AnimatedNumber value={parseFloat(status.position_value)} prefix="$" decimals={2} />
+        </StatItem>
+        <StatItem label="Impermanent Loss" warn={parseFloat(status.impermanent_loss_pct) > 5}>
+          <AnimatedNumber value={parseFloat(status.impermanent_loss_pct)} suffix="%" decimals={2} />
+        </StatItem>
+        <StatItem label="Auto-Exit">
+          <span>{status.config?.auto_exit ? '✅ ON' : '❌ OFF'}</span>
+        </StatItem>
       </div>
 
       <div className="panel-bar">
@@ -89,18 +77,23 @@ export function GuardPanel({ status, priceHistory = [] }: Props) {
           <div style={{ fontSize: '0.7rem', color: '#55556a', marginBottom: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Price History
           </div>
-          <PriceChart data={priceHistory} width={320} height={55} />
+          <PriceChart data={priceHistory} height={55} />
         </div>
       )}
 
-      {/* P&L Summary */}
       {status.pnl && (
         <div className="pnl-row">
-          <span className="pnl-item pnl-positive">Fees: +${parseFloat(status.pnl.fees_earned).toFixed(2)}</span>
-          <span className="pnl-item pnl-negative">IL: -${parseFloat(status.pnl.il_loss).toFixed(2)}</span>
-          <span className="pnl-item pnl-negative">Gas: -${parseFloat(status.pnl.gas_cost).toFixed(2)}</span>
+          <span className="pnl-item pnl-positive">
+            Fees: +<AnimatedNumber value={parseFloat(status.pnl.fees_earned)} prefix="$" decimals={2} locale={false} />
+          </span>
+          <span className="pnl-item pnl-negative">
+            IL: -<AnimatedNumber value={parseFloat(status.pnl.il_loss)} prefix="$" decimals={2} locale={false} />
+          </span>
+          <span className="pnl-item pnl-negative">
+            Gas: -<AnimatedNumber value={parseFloat(status.pnl.gas_cost)} prefix="$" decimals={2} locale={false} />
+          </span>
           <span className={`pnl-item pnl-net ${parseFloat(status.pnl.net) >= 0 ? 'pnl-positive' : 'pnl-negative'}`}>
-            Net: {parseFloat(status.pnl.net) >= 0 ? '+' : ''}${parseFloat(status.pnl.net).toFixed(2)}
+            Net: <AnimatedNumber value={Math.abs(parseFloat(status.pnl.net))} prefix={parseFloat(status.pnl.net) >= 0 ? '+$' : '-$'} decimals={2} locale={false} />
           </span>
         </div>
       )}
@@ -126,11 +119,11 @@ export function GuardPanel({ status, priceHistory = [] }: Props) {
   )
 }
 
-function StatItem({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
+function StatItem({ label, children, warn }: { label: string; children: ReactNode; warn?: boolean }) {
   return (
     <div className="stat-item">
       <span className="stat-label">{label}</span>
-      <span className={`stat-value ${warn ? 'warn' : ''}`}>{value}</span>
+      <span className={`stat-value ${warn ? 'warn' : ''}`}>{children}</span>
     </div>
   )
 }

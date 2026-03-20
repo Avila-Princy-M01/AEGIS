@@ -21,6 +21,7 @@ import asyncio
 import json
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -29,10 +30,14 @@ from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from aegis.memory import MemoryEvent
 from aegis.orchestrator import AegisOrchestrator
+
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 
 class DeployRequest(BaseModel):
@@ -188,12 +193,30 @@ async def websocket_feed(ws: WebSocket) -> None:
         ws_manager.disconnect(ws)
 
 
+# ── Serve frontend static files in production ─────────────────────
+
+if FRONTEND_DIST.is_dir():
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="static-assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str) -> FileResponse:
+        """Serve the SPA index.html for all non-API routes."""
+        file_path = FRONTEND_DIST / full_path
+        if file_path.is_file():
+            return FileResponse(str(file_path))
+        return FileResponse(str(FRONTEND_DIST / "index.html"))
+
+
 def run_server() -> None:
     """Start the AEGIS dashboard server."""
     import uvicorn
+    port = int(os.environ.get("PORT", 8000))
     print("\n  🛡️  AEGIS Dashboard Server")
-    print("  http://localhost:8000\n")
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    print(f"  http://localhost:{port}")
+    if FRONTEND_DIST.is_dir():
+        print("  📦 Serving frontend from frontend/dist/")
+    print()
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
 
 
 if __name__ == "__main__":

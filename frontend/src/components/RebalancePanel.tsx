@@ -34,25 +34,8 @@ export function RebalancePanel({ status }: Props) {
         </div>
       </div>
 
-      <div className="data-source-badge" style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.4rem',
-        padding: '0.3rem 0.6rem',
-        borderRadius: '6px',
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        marginBottom: '0.75rem',
-        background: isLive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-        border: `1px solid ${isLive ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.25)'}`,
-        color: isLive ? '#10b981' : '#f59e0b',
-      }}>
-        <span style={{
-          width: 6, height: 6, borderRadius: '50%',
-          background: isLive ? '#10b981' : '#f59e0b',
-          boxShadow: isLive ? '0 0 6px rgba(16,185,129,0.5)' : 'none',
-          animation: isLive ? 'pulse-dot 2s ease-in-out infinite' : 'none',
-        }} />
+      <div className={`data-source-badge ${isLive ? 'live' : 'simulated'}`}>
+        <span className="badge-dot" />
         {isLive ? `LIVE · ${status.chain?.toUpperCase() ?? 'ETH'}` : 'SIMULATED'}
         {status.token_pair && (
           <span style={{ color: '#8888a0', marginLeft: '0.25rem' }}>
@@ -63,7 +46,7 @@ export function RebalancePanel({ status }: Props) {
 
       {/* Range Visualization */}
       <div className="range-visualization">
-        <div className="range-labels" style={{
+        <div style={{
           display: 'flex',
           justifyContent: 'space-between',
           fontSize: '0.65rem',
@@ -77,31 +60,31 @@ export function RebalancePanel({ status }: Props) {
         </div>
         <div style={{
           position: 'relative',
-          height: '24px',
-          background: '#12121a',
-          borderRadius: '6px',
+          height: '28px',
+          background: 'rgba(255, 255, 255, 0.03)',
+          borderRadius: '8px',
           overflow: 'hidden',
           border: `1px solid ${rangeColor}22`,
         }}>
-          {/* Range area */}
+          {/* Range area gradient */}
           <div style={{
             position: 'absolute',
             left: 0,
             right: 0,
             top: 0,
             bottom: 0,
-            background: `linear-gradient(90deg, ${rangeColor}08, ${rangeColor}15, ${rangeColor}08)`,
+            background: `linear-gradient(90deg, ${rangeColor}05, ${rangeColor}12, ${rangeColor}05)`,
           }} />
           {/* Tick position indicator */}
           <div style={{
             position: 'absolute',
             left: `${Math.max(0, Math.min(100, utilization))}%`,
-            top: 0,
-            bottom: 0,
+            top: '2px',
+            bottom: '2px',
             width: '3px',
             background: rangeColor,
             borderRadius: '2px',
-            boxShadow: `0 0 8px ${rangeColor}`,
+            boxShadow: `0 0 10px ${rangeColor}, 0 0 20px ${rangeColor}50`,
             transform: 'translateX(-50%)',
             transition: 'left 1s ease',
           }} />
@@ -112,7 +95,7 @@ export function RebalancePanel({ status }: Props) {
             top: '4px',
             bottom: '4px',
             width: '1px',
-            background: '#2a2a3a',
+            background: 'rgba(255, 255, 255, 0.06)',
           }} />
         </div>
         <div style={{
@@ -144,9 +127,10 @@ export function RebalancePanel({ status }: Props) {
           marginTop: '0.75rem',
           padding: '0.6rem',
           borderRadius: '8px',
-          background: 'rgba(245, 158, 11, 0.08)',
-          border: '1px solid rgba(245, 158, 11, 0.2)',
+          background: 'rgba(245, 158, 11, 0.06)',
+          border: '1px solid rgba(245, 158, 11, 0.15)',
           fontSize: '0.78rem',
+          animation: 'fadeInUp 0.4s ease',
         }}>
           <div style={{ color: '#f59e0b', fontWeight: 700, marginBottom: '0.25rem' }}>
             💡 Suggested Rebalance

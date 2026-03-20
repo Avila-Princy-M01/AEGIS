@@ -139,6 +139,14 @@ DEMO_POSITION_IDS: dict[str, list[int]] = {
 CHAIN_PRESETS: dict[str, dict[str, Any]] = {
     "ethereum": {
         "rpc_public": "https://eth.llamarpc.com",
+        "rpc_fallbacks": [
+            "https://eth.llamarpc.com",
+            "https://rpc.ankr.com/eth",
+            "https://ethereum-rpc.publicnode.com",
+            "https://1rpc.io/eth",
+            "https://eth.drpc.org",
+            "https://cloudflare-eth.com",
+        ],
         "rpc_alchemy": "https://eth-mainnet.g.alchemy.com/v2/{key}",
         "factory": UNISWAP_V3_FACTORY,
         "nft_manager": NONFUNGIBLE_POSITION_MANAGER,
@@ -161,6 +169,13 @@ CHAIN_PRESETS: dict[str, dict[str, Any]] = {
     },
     "base": {
         "rpc_public": "https://mainnet.base.org",
+        "rpc_fallbacks": [
+            "https://mainnet.base.org",
+            "https://base.llamarpc.com",
+            "https://rpc.ankr.com/base",
+            "https://base-rpc.publicnode.com",
+            "https://1rpc.io/base",
+        ],
         "rpc_alchemy": "https://base-mainnet.g.alchemy.com/v2/{key}",
         "factory": UNISWAP_V3_FACTORY,
         "nft_manager": NONFUNGIBLE_POSITION_MANAGER,
@@ -234,6 +249,8 @@ class UniswapV3Client:
         self._token0_decimals: int = 6
         self._token1_decimals: int = 18
         self._invert_price: bool = True
+        self._rpc_urls: list[str] = []
+        self._rpc_index: int = 0
 
         if not WEB3_AVAILABLE:
             logger.warning("web3 not installed — running in simulation mode")
@@ -245,9 +262,12 @@ class UniswapV3Client:
             return
 
         if alchemy_key:
-            rpc_url = preset["rpc_alchemy"].format(key=alchemy_key)
+            self._rpc_urls = [preset["rpc_alchemy"].format(key=alchemy_key)]
+            self._rpc_urls.extend(preset.get("rpc_fallbacks", [preset["rpc_public"]]))
         else:
-            rpc_url = preset["rpc_public"]
+            self._rpc_urls = list(preset.get("rpc_fallbacks", [preset["rpc_public"]]))
+
+        rpc_url = self._rpc_urls[0]
 
         try:
             self._w3 = Web3(HTTPProvider(rpc_url, request_kwargs={"timeout": 10}))
@@ -258,38 +278,60 @@ class UniswapV3Client:
                 self._token0_decimals = preset["token0_decimals"]
                 self._token1_decimals = preset["token1_decimals"]
                 self._invert_price = preset.get("invert_price", True)
-                self._pool_contract = self._w3.eth.contract(
-                    address=Web3.to_checksum_address(self._pool_address),
-                    abi=POOL_ABI,
-                )
-                for pcfg in preset.get("pools", []):
-                    label = pcfg["label"]
-                    addr = Web3.to_checksum_address(pcfg["address"])
-                    self._pool_contracts[label] = self._w3.eth.contract(
-                        address=addr, abi=POOL_ABI,
-                    )
-                    self._pool_configs[label] = pcfg
-                pm_addr = preset.get("nft_manager", NONFUNGIBLE_POSITION_MANAGER)
-                self._position_manager = self._w3.eth.contract(
-                    address=Web3.to_checksum_address(pm_addr),
-                    abi=POSITION_MANAGER_ABI,
-                )
+                self._rebuild_contracts(preset)
                 logger.info(
-                    "Connected to %s — monitoring %s (%s) + %d pools",
+                    "Connected to %s — monitoring %s (%s) + %d pools [%d RPC fallbacks]",
                     chain,
                     self._token_pair,
                     self._pool_address[:10] + "...",
                     len(self._pool_contracts),
+                    len(self._rpc_urls),
                 )
             else:
                 logger.warning("RPC not reachable — running in simulation mode")
         except Exception as exc:
             logger.warning("Failed to connect to %s RPC: %s — simulation mode", chain, exc)
 
-    # ── Retry logic ────────────────────────────────────────────────
+    def _rebuild_contracts(self, preset: dict[str, Any] | None = None) -> None:
+        """Rebuild all contract instances from the current Web3 provider."""
+        if preset is None:
+            preset = CHAIN_PRESETS.get(self.chain, {})
+        self._pool_contract = self._w3.eth.contract(
+            address=Web3.to_checksum_address(self._pool_address),
+            abi=POOL_ABI,
+        )
+        self._pool_contracts.clear()
+        for pcfg in preset.get("pools", []):
+            label = pcfg["label"]
+            addr = Web3.to_checksum_address(pcfg["address"])
+            self._pool_contracts[label] = self._w3.eth.contract(
+                address=addr, abi=POOL_ABI,
+            )
+            self._pool_configs[label] = pcfg
+        pm_addr = preset.get("nft_manager", NONFUNGIBLE_POSITION_MANAGER)
+        self._position_manager = self._w3.eth.contract(
+            address=Web3.to_checksum_address(pm_addr),
+            abi=POSITION_MANAGER_ABI,
+        )
 
-    @staticmethod
+    def _rotate_rpc(self) -> None:
+        """Switch to the next fallback RPC endpoint on rate-limit errors."""
+        if len(self._rpc_urls) <= 1:
+            return
+        self._rpc_index = (self._rpc_index + 1) % len(self._rpc_urls)
+        new_url = self._rpc_urls[self._rpc_index]
+        logger.info("⚡ Rotating RPC → %s", new_url)
+        try:
+            self._w3 = Web3(HTTPProvider(new_url, request_kwargs={"timeout": 10}))
+            if self._pool_address:
+                self._rebuild_contracts()
+        except Exception as exc:
+            logger.warning("RPC rotation failed for %s: %s", new_url, exc)
+
+    # ── Retry logic with RPC rotation ─────────────────────────────
+
     def _call_with_retry(
+        self,
         fn: Callable[..., T],
         *args: Any,
         max_retries: int = 3,
@@ -298,11 +340,11 @@ class UniswapV3Client:
     ) -> T:
         """Call *fn* with exponential backoff on transient RPC errors.
 
-        Retries on exceptions whose string representation contains known
-        transient error signatures (e.g. ``header not found``,
-        ``request failed``, ``connection``, ``timeout``).
-        Non-transient errors are raised immediately.
+        On 429 (rate limit) errors, rotates to the next fallback RPC
+        endpoint before retrying. Other transient errors use standard
+        exponential backoff.
         """
+        rate_limit_patterns = ("429", "rate limit", "too many requests")
         transient_patterns = ("header not found", "request failed", "connection",
                               "timeout", "rate limit", "429", "502", "503")
         last_exc: Exception | None = None
@@ -313,13 +355,18 @@ class UniswapV3Client:
             except Exception as exc:
                 last_exc = exc
                 err_str = str(exc).lower()
+                is_rate_limited = any(p in err_str for p in rate_limit_patterns)
                 is_transient = any(p in err_str for p in transient_patterns)
 
                 if not is_transient:
                     raise  # non-transient → fail fast
 
                 if attempt < max_retries - 1:
-                    delay = backoff_base * (2 ** attempt)
+                    if is_rate_limited:
+                        self._rotate_rpc()
+                        delay = 0.3
+                    else:
+                        delay = backoff_base * (2 ** attempt)
                     logger.debug(
                         "%s attempt %d/%d failed (%s) — retrying in %.1fs",
                         label, attempt + 1, max_retries, exc, delay,
@@ -463,7 +510,10 @@ class UniswapV3Client:
         return (v2_il * concentration).quantize(Decimal("0.01"))
 
     async def get_multi_pool_states(self) -> list[PoolState]:
-        """Fetch state for all configured pools on this chain."""
+        """Fetch state for all configured pools on this chain.
+
+        Adds a small delay between queries to avoid hammering a single RPC.
+        """
         if not self.live or not self._w3:
             return []
 
@@ -473,7 +523,7 @@ class UniswapV3Client:
             return [state] if state else []
 
         states: list[PoolState] = []
-        for pool_info in preset["pools"]:
+        for i, pool_info in enumerate(preset["pools"]):
             try:
                 state = await asyncio.to_thread(
                     self._call_with_retry,
@@ -488,6 +538,8 @@ class UniswapV3Client:
                 states.append(state)
             except Exception as exc:
                 logger.warning("Multi-pool query failed for %s: %s", pool_info["label"], exc)
+            if i < len(preset["pools"]) - 1:
+                await asyncio.sleep(0.25)
 
         return states
 

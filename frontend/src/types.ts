@@ -101,6 +101,8 @@ export interface SystemStatus {
   block_number?: number
   gas_price_gwei?: string
   eth_price?: string
+  rpc_status?: 'connected' | 'reconnecting' | 'error' | 'disconnected'
+  rpc_provider?: string
   agents: {
     guard: GuardStatus | null
     grow: GrowStatus | null

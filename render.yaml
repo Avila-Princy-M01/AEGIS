@@ -1,0 +1,25 @@
+# AEGIS — Render Deployment Configuration
+# Deploy: Connect this repo on https://dashboard.render.com
+
+services:
+  - type: web
+    name: aegis-guardian
+    runtime: python
+    plan: free
+    buildCommand: |
+      pip install -r requirements.txt
+      cd frontend && npm install && npm run build && cd ..
+    startCommand: python -m aegis.server
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_API_KEY_2
+        sync: false
+      - key: ALCHEMY_API_KEY
+        sync: false
+      - key: PORT
+        value: 10000
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: NODE_VERSION
+        value: 20

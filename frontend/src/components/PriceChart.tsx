@@ -7,21 +7,21 @@ interface Props {
   data: PricePoint[]
   width?: number
   height?: number
-  color?: string
 }
 
-export function PriceChart({ data, width = 280, height = 60, color = '#3b82f6' }: Props) {
+export function PriceChart({ data, width = 320, height = 60 }: Props) {
   if (data.length < 2) {
     return (
-      <div className="price-chart-empty" style={{
-        width, height,
+      <div style={{
+        width: '100%', height,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         color: '#55556a',
         fontSize: '0.7rem',
-        borderRadius: '6px',
+        borderRadius: '8px',
         background: 'rgba(255,255,255,0.02)',
+        border: '1px solid rgba(255,255,255,0.04)',
       }}>
         Collecting price data...
       </div>
@@ -49,21 +49,32 @@ export function PriceChart({ data, width = 280, height = 60, color = '#3b82f6' }
   const firstPrice = prices[0]
   const trending = lastPrice >= firstPrice
   const lineColor = trending ? '#10b981' : '#ef4444'
+  const glowColor = trending ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'
 
   const areaPoints = `${padding},${padding + chartH} ${polyline} ${padding + chartW},${padding + chartH}`
 
+  const lastX = padding + chartW
+  const lastY = padding + chartH - ((lastPrice - min) / range) * chartH
+
   return (
-    <div style={{ position: 'relative' }}>
-      <svg width={width} height={height} style={{ display: 'block' }}>
+    <div className="price-chart-container" style={{ width: '100%' }}>
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: 'block', width: '100%', height: 'auto' }}>
         <defs>
-          <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id="priceAreaGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={lineColor} stopOpacity="0.2" />
-            <stop offset="100%" stopColor={lineColor} stopOpacity="0.02" />
+            <stop offset="100%" stopColor={lineColor} stopOpacity="0.01" />
           </linearGradient>
+          <filter id="chartGlow">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
         </defs>
         <polygon
           points={areaPoints}
-          fill="url(#priceGrad)"
+          fill="url(#priceAreaGrad)"
         />
         <polyline
           points={polyline}
@@ -72,13 +83,35 @@ export function PriceChart({ data, width = 280, height = 60, color = '#3b82f6' }
           strokeWidth="1.5"
           strokeLinecap="round"
           strokeLinejoin="round"
+          filter="url(#chartGlow)"
         />
+        {/* Pulsing last-price dot */}
         <circle
-          cx={padding + chartW}
-          cy={padding + chartH - ((lastPrice - min) / range) * chartH}
-          r="3"
+          cx={lastX}
+          cy={lastY}
+          r="4"
           fill={lineColor}
-          style={{ filter: `drop-shadow(0 0 4px ${lineColor})` }}
+          opacity="0.25"
+        >
+          <animate
+            attributeName="r"
+            values="4;7;4"
+            dur="2s"
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="opacity"
+            values="0.25;0.08;0.25"
+            dur="2s"
+            repeatCount="indefinite"
+          />
+        </circle>
+        <circle
+          cx={lastX}
+          cy={lastY}
+          r="2.5"
+          fill={lineColor}
+          style={{ filter: `drop-shadow(0 0 4px ${glowColor})` }}
         />
       </svg>
       <div style={{

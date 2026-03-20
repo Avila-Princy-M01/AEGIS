@@ -221,7 +221,10 @@ def test_retry_succeeds_after_transient_failure():
             raise Exception("header not found")
         return "success"
 
-    result = UniswapV3Client._call_with_retry(
+    client = UniswapV3Client.__new__(UniswapV3Client)
+    client._rpc_urls = []
+    client._rpc_index = 0
+    result = client._call_with_retry(
         flaky_fn, max_retries=3, backoff_base=0.01, label="test",
     )
     assert result == "success"
@@ -233,8 +236,11 @@ def test_retry_raises_non_transient():
     def bad_fn():
         raise ValueError("invalid argument")
 
+    client = UniswapV3Client.__new__(UniswapV3Client)
+    client._rpc_urls = []
+    client._rpc_index = 0
     with pytest.raises(ValueError, match="invalid argument"):
-        UniswapV3Client._call_with_retry(
+        client._call_with_retry(
             bad_fn, max_retries=3, backoff_base=0.01, label="test",
         )
 
@@ -244,8 +250,11 @@ def test_retry_exhausts_attempts():
     def always_fail():
         raise Exception("header not found")
 
+    client = UniswapV3Client.__new__(UniswapV3Client)
+    client._rpc_urls = []
+    client._rpc_index = 0
     with pytest.raises(Exception, match="header not found"):
-        UniswapV3Client._call_with_retry(
+        client._call_with_retry(
             always_fail, max_retries=2, backoff_base=0.01, label="test",
         )
 
