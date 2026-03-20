@@ -1,0 +1,51 @@
+# ── AEGIS: Autonomous Wallet Guardian — Uniswap Track ──────────────
+# Classified Hackathon submission targeting $25K Uniswap + $12K Lido Tracks.
+# Multi-agent system: Guard + Grow + Rebalance + Legacy protecting LP positions.
+# Real on-chain Uniswap V3 integration via web3.py. Monitors wstETH/ETH (Lido).
+
+[agent]
+name = "aegis-guardian"
+description = "AEGIS — 4 coordinated AI agents that protect, grow, rebalance, and inherit your Uniswap V3 LP positions with real on-chain data. Guard monitors live pool prices and calculates impermanent loss. Grow tracks real feeGrowthGlobal with gas-aware compounding. Rebalance detects out-of-range positions and suggests optimal new ranges. Legacy handles digital inheritance. Monitors 5 Ethereum pools including wstETH/ETH + stETH/ETH (Lido). Zero Solidity — pure Python via PyVax."
+workspace_dir = "./workspace"
+max_steps = 100
+
+[llm]
+provider = "openai"
+model = "llama-3.3-70b-versatile"
+api_key_env = "GROQ_API_KEY"
+base_url = "https://api.groq.com/openai/v1"
+
+[chain]
+default = "ethereum"
+supported = ["ethereum", "base"]
+alchemy_api_key_env = "ALCHEMY_API_KEY"
+
+[chain.ethereum]
+rpc_public = "https://eth.llamarpc.com"
+default_pool = "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8"  # ETH/USDC 0.3%
+pool_label = "ETH/USDC 0.3%"
+
+[chain.base]
+rpc_public = "https://mainnet.base.org"
+default_pool = "0xd0b53D9277642d899DF5C87A3966A349A798F224"  # ETH/USDC 0.05%
+pool_label = "ETH/USDC 0.05%"
+
+[wallet]
+backend = "web3"
+default_chain = "ethereum"
+
+[wallet.policy]
+max_native_per_tx = "0.5"
+max_native_per_day = "2.0"
+allowed_contracts = []
+allowed_methods = []
+
+[synthesis]
+enabled = true
+skill_url = "https://synthesis.md/skill.md"
+track = "uniswap,lido"
+agent_profile = "AEGIS — Autonomous multi-agent Uniswap V3 LP guardian with real on-chain integration. 4 AI agents (Guard/Grow/Rebalance/Legacy) coordinate through shared memory to monitor live pool state, calculate real impermanent loss, track fee growth with gas-aware compounding, detect out-of-range positions, and handle digital inheritance. Multi-pool monitoring (ETH/USDC, ETH/USDT, wstETH/ETH + stETH/ETH Lido) across Ethereum Mainnet + Base via web3.py. Built with PyVax."
+
+[logging]
+level = "INFO"
+log_dir = "./logs"
