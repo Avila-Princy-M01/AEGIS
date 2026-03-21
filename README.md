@@ -193,6 +193,8 @@ All five agents share intelligence through **shared memory**:
 
 ## 🏗️ Architecture
 
+> ℹ️ *The diagram below renders automatically on GitHub. If you see raw text, [view it on GitHub](https://github.com/Avila-Princy-M01/AEGIS#%EF%B8%8F-architecture).*
+
 ```mermaid
 flowchart TB
     User["👤 User: Natural Language Command"] --> NLP["🧠 NLP Parser (Groq LLM)"]
@@ -220,6 +222,34 @@ flowchart TB
     Uni --> BASE["🔵 Base — 1 pool"]
     UniAPI --> SEP["🟡 Sepolia — live swap execution"]
 ```
+
+<details>
+<summary>📋 Text version (if diagram doesn't render)</summary>
+
+```
+👤 User Command
+  └─→ 🧠 NLP Parser (Groq LLM)
+       └─→ ⚙️ AEGIS Orchestrator
+            ├─→ 🛡️ Guard Agent ←──┐
+            ├─→ 📈 Grow Agent  ←──┤
+            ├─→ 🎯 Rebalance  ←──┤── 💾 Shared Memory (pub/sub)
+            ├─→ 🥪 MEV Shield ←──┤
+            ├─→ 🏛️ Legacy     ←──┘
+            │
+            ├─→ 🦄 UniswapV3Client (web3.py)
+            │    ├─→ 🟣 Ethereum Mainnet (5 pools)
+            │    └─→ 🔵 Base (1 pool)
+            │
+            ├─→ 🔄 Uniswap Trading API /v1/swap
+            │    └─→ 🟡 Sepolia (live swap execution)
+            │
+            ├─→ 🔗 ENS Resolver (.eth → 0x...)
+            ├─→ 📊 Analytics (Lido / Pools / Backtest)
+            ├─→ 🧾 ERC-8004 (Base Mainnet Identity)
+            └─→ 📊 React Dashboard (WebSocket + REST)
+```
+
+</details>
 
 ---
 
