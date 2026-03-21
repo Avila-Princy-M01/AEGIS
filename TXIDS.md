@@ -18,7 +18,7 @@
 
 | # | Pair | Amount | TxID | Status |
 |---|------|--------|------|--------|
-| 1 | WETH → USDC | 0.1 ETH | _pending — needs Sepolia ETH from faucet_ | ⏳ |
+| 1 | ETH → USDC | 0.001 ETH (5.55 USDC) | [`83087cd184dd637b...`](https://sepolia.etherscan.io/tx/83087cd184dd637b85594e10928e2cc9e255cd847c2875e1275c57d1f79591fe) | ✅ Confirmed (block 10491702) |
 
 ### How to Execute a Swap
 

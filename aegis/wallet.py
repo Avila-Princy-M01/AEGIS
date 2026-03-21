@@ -88,6 +88,18 @@ class AegisWallet:
             logger.warning("Balance check failed: %s", exc)
             return "0"
 
+    @staticmethod
+    def _parse_int(val: Any, default: int = 0) -> int:
+        """Parse an int from hex string, decimal string, or int."""
+        if val is None:
+            return default
+        if isinstance(val, int):
+            return val
+        s = str(val).strip()
+        if s.startswith("0x") or s.startswith("0X"):
+            return int(s, 16)
+        return int(s) if s else default
+
     async def sign_and_send(self, tx_data: dict[str, Any]) -> dict[str, Any]:
         """Sign and broadcast a transaction. Sepolia testnet ONLY.
 
@@ -101,7 +113,7 @@ class AegisWallet:
         if not self.available or not self._w3 or not self._account:
             return {"error": "Wallet not available"}
 
-        chain_id = tx_data.get("chainId", 0)
+        chain_id = self._parse_int(tx_data.get("chainId", 0))
         self._assert_testnet(chain_id)
 
         try:
@@ -111,22 +123,26 @@ class AegisWallet:
                 self._w3.eth.get_transaction_count, self.address
             )
 
+            gas = self._parse_int(
+                tx_data.get("gas", tx_data.get("gasLimit", 300000))
+            )
+
             tx = {
                 "from": self.address,
                 "to": Web3.to_checksum_address(tx_data["to"]),
                 "data": tx_data.get("data", "0x"),
-                "value": int(tx_data.get("value", 0)),
+                "value": self._parse_int(tx_data.get("value", 0)),
                 "chainId": SEPOLIA_CHAIN_ID,
                 "nonce": nonce,
-                "gas": int(tx_data.get("gas", tx_data.get("gasLimit", 300000))),
+                "gas": gas,
                 "maxFeePerGas": self._w3.to_wei("5", "gwei"),
                 "maxPriorityFeePerGas": self._w3.to_wei("2", "gwei"),
             }
 
             if "maxFeePerGas" in tx_data:
-                tx["maxFeePerGas"] = int(tx_data["maxFeePerGas"])
+                tx["maxFeePerGas"] = self._parse_int(tx_data["maxFeePerGas"])
             if "maxPriorityFeePerGas" in tx_data:
-                tx["maxPriorityFeePerGas"] = int(tx_data["maxPriorityFeePerGas"])
+                tx["maxPriorityFeePerGas"] = self._parse_int(tx_data["maxPriorityFeePerGas"])
 
             signed = self._account.sign_transaction(tx)
 

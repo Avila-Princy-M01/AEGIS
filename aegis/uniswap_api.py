@@ -99,7 +99,9 @@ class UniswapTradingAPI:
                 logger.warning("Uniswap API error %d: %s", resp.status_code, data)
                 return {"error": f"API error: {resp.status_code}", "detail": str(data)}
 
-            return self._parse_quote(data, token_in, token_out, chain_id)
+            parsed = self._parse_quote(data, token_in, token_out, chain_id)
+            parsed["_raw"] = data
+            return parsed
         except Exception as exc:
             logger.warning("Uniswap API request failed: %s", exc)
             return {"error": str(exc)}
@@ -144,7 +146,7 @@ class UniswapTradingAPI:
             "price_impact": str(price_impact),
             "routing": routing,
             "route": route_info,
-            "slippage": quote.get("slippage", {}).get("tolerance", 0.5),
+            "slippage": quote.get("slippage", {}).get("tolerance", 0.5) if isinstance(quote.get("slippage"), dict) else quote.get("slippage", 0.5),
             "source": "uniswap_trading_api",
         }
 
@@ -211,30 +213,16 @@ class UniswapTradingAPI:
 
     async def get_swap(
         self,
-        token_in: str,
-        token_out: str,
-        amount: str,
-        wallet_address: str,
-        chain_id: int = 11155111,
-        slippage: float = 0.5,
+        raw_quote: dict[str, Any],
     ) -> dict[str, Any]:
         """Get swap calldata from the Uniswap Trading API.
 
-        Returns transaction data (to, data, value, gasLimit) ready for signing.
+        Accepts the raw quote response from get_quote (via the '_raw' key)
+        and passes it to /swap to get transaction data ready for signing.
         """
         if not self.available:
             return {"error": "UNISWAP_API_KEY not configured"}
 
-        payload = {
-            "type": "EXACT_INPUT",
-            "amount": amount,
-            "tokenInChainId": chain_id,
-            "tokenOutChainId": chain_id,
-            "tokenIn": token_in,
-            "tokenOut": token_out,
-            "swapper": wallet_address,
-            "slippageTolerance": slippage,
-        }
         headers = {
             "Content-Type": "application/json",
             "x-api-key": self.api_key,
@@ -242,7 +230,7 @@ class UniswapTradingAPI:
         try:
             resp = await self._client.post(
                 f"{UNISWAP_API_BASE}/swap",
-                json=payload,
+                json={"quote": raw_quote},
                 headers=headers,
             )
             data = resp.json()
@@ -276,13 +264,12 @@ class UniswapTradingAPI:
         if "error" in quote:
             return quote
 
-        swap_data = await self.get_swap(
-            token_in=token_in,
-            token_out=token_out,
-            amount=amount,
-            wallet_address=wallet_address,
-            chain_id=chain_id,
-        )
+        raw_response = quote.pop("_raw", {})
+        if not raw_response:
+            return {"error": "No raw quote data available", "quote": quote}
+
+        inner_quote = raw_response.get("quote", raw_response)
+        swap_data = await self.get_swap(inner_quote)
         if "error" in swap_data:
             return {"error": swap_data["error"], "quote": quote}
 

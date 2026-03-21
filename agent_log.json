@@ -77,16 +77,24 @@
     }
   },
   {
-    "timestamp": "2025-03-21T12:01:00Z",
-    "agent": "orchestrator",
+    "timestamp": "2025-07-19T07:30:00Z",
+    "agent": "grow",
     "action": "swap_executed",
     "data": {
-      "tx_hash": "pending — needs Sepolia ETH from faucet",
-      "token_in": "WETH",
+      "tx_hash": "83087cd184dd637b85594e10928e2cc9e255cd847c2875e1275c57d1f79591fe",
+      "explorer_url": "https://sepolia.etherscan.io/tx/83087cd184dd637b85594e10928e2cc9e255cd847c2875e1275c57d1f79591fe",
+      "token_in": "ETH (native)",
       "token_out": "USDC",
-      "amount": "100000000000000000",
+      "amount_in": "1000000000000000",
+      "amount_out": "5552484",
       "chain_id": 11155111,
-      "note": "Swap execution ready — wallet funded via Sepolia faucet triggers real TxID"
+      "block_number": 10491702,
+      "gas_used": 132368,
+      "status": "confirmed",
+      "routing": "CLASSIC",
+      "route": [{"type": "v3-pool", "fee": "10000", "tokenIn": "WETH", "tokenOut": "USDC"}],
+      "api": "trade-api.gateway.uniswap.org/v1/swap",
+      "reasoning": "Compound cycle: swapped 0.001 ETH → 5.55 USDC via Uniswap Trading API on Sepolia testnet"
     }
   }
 ]
