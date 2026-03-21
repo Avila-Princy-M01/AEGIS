@@ -81,8 +81,8 @@
     "agent": "grow",
     "action": "swap_executed",
     "data": {
-      "tx_hash": "83087cd184dd637b85594e10928e2cc9e255cd847c2875e1275c57d1f79591fe",
-      "explorer_url": "https://sepolia.etherscan.io/tx/83087cd184dd637b85594e10928e2cc9e255cd847c2875e1275c57d1f79591fe",
+      "tx_hash": "0x83087cd184dd637b85594e10928e2cc9e255cd847c2875e1275c57d1f79591fe",
+      "explorer_url": "https://sepolia.etherscan.io/tx/0x83087cd184dd637b85594e10928e2cc9e255cd847c2875e1275c57d1f79591fe",
       "token_in": "ETH (native)",
       "token_out": "USDC",
       "amount_in": "1000000000000000",

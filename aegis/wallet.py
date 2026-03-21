@@ -150,7 +150,8 @@ class AegisWallet:
                 self._w3.eth.send_raw_transaction, signed.raw_transaction
             )
 
-            hex_hash = tx_hash.hex() if hasattr(tx_hash, "hex") else str(tx_hash)
+            raw_hex = tx_hash.hex() if hasattr(tx_hash, "hex") else str(tx_hash)
+            hex_hash = raw_hex if raw_hex.startswith("0x") else f"0x{raw_hex}"
             explorer_url = f"https://sepolia.etherscan.io/tx/{hex_hash}"
 
             logger.info("TX broadcast: %s", explorer_url)
