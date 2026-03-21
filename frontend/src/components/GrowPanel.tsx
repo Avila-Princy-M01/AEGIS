@@ -98,6 +98,28 @@ export function GrowPanel({ status }: Props) {
         </div>
       </div>
 
+      {status.swap_route && status.swap_route.source && (
+        <div style={{
+          marginTop: '0.5rem',
+          padding: '0.5rem 0.65rem',
+          borderRadius: '8px',
+          background: 'rgba(255, 0, 122, 0.04)',
+          border: '1px solid rgba(255, 0, 122, 0.12)',
+          fontSize: '0.72rem',
+          fontFamily: 'var(--font-mono)',
+        }}>
+          <div style={{ color: '#ff007a', fontWeight: 700, marginBottom: '0.25rem' }}>
+            🦄 Uniswap Swap Route
+          </div>
+          <div style={{ color: '#8888a0' }}>
+            {status.swap_route.routing} · Gas ~${parseFloat(status.swap_route.gas_usd || '0').toFixed(2)}
+            {status.swap_route.route?.length > 0 && (
+              <span> · {status.swap_route.route.map((r: { tokenIn: string; tokenOut: string }) => `${r.tokenIn}→${r.tokenOut}`).join(' → ')}</span>
+            )}
+          </div>
+        </div>
+      )}
+
       {status.reasoning && (
         <div className="reasoning-line">🧠 {status.reasoning}</div>
       )}

@@ -1,11 +1,12 @@
 # ── AEGIS: Autonomous Wallet Guardian — Uniswap Track ──────────────
-# Classified Hackathon submission targeting $25K Uniswap + $12K Lido Tracks.
-# Multi-agent system: Guard + Grow + Rebalance + Legacy protecting LP positions.
+# Classified Hackathon submission targeting $25K Uniswap + $12K Lido + $15K Base Tracks.
+# Multi-agent system: Guard + Grow + Rebalance + MEV + Legacy protecting LP positions.
 # Real on-chain Uniswap V3 integration via web3.py. Monitors wstETH/ETH (Lido).
+# ENS name resolution for beneficiaries. Lido yield comparison. Cross-pool allocation.
 
 [agent]
 name = "aegis-guardian"
-description = "AEGIS — 4 coordinated AI agents that protect, grow, rebalance, and inherit your Uniswap V3 LP positions with real on-chain data. Guard monitors live pool prices and calculates impermanent loss. Grow tracks real feeGrowthGlobal with gas-aware compounding. Rebalance detects out-of-range positions and suggests optimal new ranges. Legacy handles digital inheritance. Monitors 5 Ethereum pools including wstETH/ETH + stETH/ETH (Lido). Zero Solidity — pure Python via PyVax."
+description = "AEGIS — 5 AI agents protecting Uniswap V3 LP positions: Guard, Grow, Rebalance, MEV Shield, Legacy. Real on-chain data via web3.py. Lido yield comparison, cross-pool allocation, backtesting, ENS resolution. 4 PyVax smart contracts. Ethereum + Base."
 workspace_dir = "./workspace"
 max_steps = 100
 
@@ -20,6 +21,10 @@ default = "ethereum"
 supported = ["ethereum", "base"]
 alchemy_api_key_env = "ALCHEMY_API_KEY"
 
+[uniswap]
+api_key_env = "UNISWAP_API_KEY"
+trading_api_url = "https://trade-api.gateway.uniswap.org/v1"
+
 [chain.ethereum]
 rpc_public = "https://eth.llamarpc.com"
 default_pool = "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8"  # ETH/USDC 0.3%
@@ -31,7 +36,7 @@ default_pool = "0xd0b53D9277642d899DF5C87A3966A349A798F224"  # ETH/USDC 0.05%
 pool_label = "ETH/USDC 0.05%"
 
 [wallet]
-backend = "web3"
+backend = "local"
 default_chain = "ethereum"
 
 [wallet.policy]
@@ -43,8 +48,8 @@ allowed_methods = []
 [synthesis]
 enabled = true
 skill_url = "https://synthesis.md/skill.md"
-track = "uniswap,lido"
-agent_profile = "AEGIS — Autonomous multi-agent Uniswap V3 LP guardian with real on-chain integration. 4 AI agents (Guard/Grow/Rebalance/Legacy) coordinate through shared memory to monitor live pool state, calculate real impermanent loss, track fee growth with gas-aware compounding, detect out-of-range positions, and handle digital inheritance. Multi-pool monitoring (ETH/USDC, ETH/USDT, wstETH/ETH + stETH/ETH Lido) across Ethereum Mainnet + Base via web3.py. Built with PyVax."
+track = "uniswap,open"
+agent_profile = "AEGIS — 5 AI agents for Uniswap V3 LP management: Guard/Grow/Rebalance/MEV/Legacy. Live on-chain monitoring, IL calculation, fee compounding, MEV detection, ENS inheritance. Lido yield analysis, cross-pool allocation, backtesting. 4 PyVax contracts."
 
 [logging]
 level = "INFO"

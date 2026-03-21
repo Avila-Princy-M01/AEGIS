@@ -1,0 +1,33 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+  "name": "aegis-guardian",
+  "description": "AEGIS — 5 coordinated AI agents protecting Uniswap V3 LP positions. Guard (IL monitoring), Grow (gas-aware fee compounding via Uniswap Trading API), Rebalance (range drift detection), MEV Shield (sandwich attack detection), Legacy (dead man's switch with ENS). Real on-chain data via web3.py. Lido yield comparison, cross-pool allocation, backtesting. 4 PyVax smart contracts. Sepolia testnet swap execution.",
+  "image": "https://raw.githubusercontent.com/Avila-Princy-M01/AEGIS/main/assets/landing.png",
+  "endpoints": {
+    "api": "http://localhost:8000/api",
+    "websocket": "ws://localhost:8000/ws/feed",
+    "dashboard": "http://localhost:5173"
+  },
+  "agentWallet": "0x9aC234De759456f2b65FB7C182CFCE013889390A",
+  "participantId": "6ff8d7e7ffc942c58400d97b1264e1e0",
+  "teamId": "43734f07c3624fed835fd96659e01b24",
+  "erc8004TxHash": "0x48a190093bad8a57c0e4c4feba3a783f7c2f63625aad4e978db62fce9c625389",
+  "agents": [
+    {"name": "guard", "role": "Threat detection — real-time IL calculation, P&L tracking, auto-exit"},
+    {"name": "grow", "role": "Fee compounding — gas-aware, Uniswap Trading API swap execution"},
+    {"name": "rebalance", "role": "Range monitoring — out-of-range detection, optimal range suggestions"},
+    {"name": "mev", "role": "MEV protection — sandwich/front-run detection, safe swap routing"},
+    {"name": "legacy", "role": "Digital inheritance — dead man's switch, ENS name resolution"}
+  ],
+  "tools": [
+    "web3.py (on-chain reads: slot0, feeGrowthGlobal, gasPrice, liquidity)",
+    "Uniswap Trading API (swap quotes + execution via trade-api.gateway.uniswap.org)",
+    "Uniswap V3 pool contracts (6 pools: ETH/USDC, ETH/USDT, wstETH/ETH, stETH/ETH)",
+    "ENS public resolver (beneficiary name resolution)",
+    "Groq LLM (natural language command parsing)",
+    "PyVax (4 smart contracts: Guard Vault, Grow Vault, Legacy Will, MEV Shield)"
+  ],
+  "chains": ["ethereum", "base", "sepolia"],
+  "tracks": ["uniswap", "open"],
+  "repository": "https://github.com/Avila-Princy-M01/AEGIS"
+}

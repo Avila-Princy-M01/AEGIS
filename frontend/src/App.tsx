@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { MemoryEvent, PricePoint, SystemStatus } from './types'
+import type { BacktestResult, LidoYieldData, PoolAllocationData, MemoryEvent, PricePoint, SystemStatus } from './types'
 import * as api from './api'
 import { CommandInput } from './components/CommandInput'
 import { GuardPanel } from './components/GuardPanel'
 import { GrowPanel } from './components/GrowPanel'
 import { LegacyPanel } from './components/LegacyPanel'
 import { RebalancePanel } from './components/RebalancePanel'
+import { MevPanel } from './components/MevPanel'
+import { BacktestPanel } from './components/BacktestPanel'
+import { AnalyticsPanel } from './components/AnalyticsPanel'
+import { SwapQuotePanel } from './components/SwapQuotePanel'
 import { ActivityFeed } from './components/ActivityFeed'
 import { DemoControls } from './components/DemoControls'
 import { ParticleBackground } from './components/ParticleBackground'
@@ -17,6 +21,9 @@ export default function App() {
   const [deployed, setDeployed] = useState(false)
   const [deploying, setDeploying] = useState(false)
   const [priceHistory, setPriceHistory] = useState<PricePoint[]>([])
+  const [backtestResults, setBacktestResults] = useState<BacktestResult | null>(null)
+  const [lidoYield, setLidoYield] = useState<LidoYieldData | null>(null)
+  const [poolAllocation, setPoolAllocation] = useState<PoolAllocationData | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -46,6 +53,10 @@ export default function App() {
 
       const existingEvents = await api.getEvents(50)
       setEvents(existingEvents)
+
+      api.runBacktest(30).then(setBacktestResults).catch(() => {})
+      api.getLidoYield().then(setLidoYield).catch(() => {})
+      api.getPoolAllocation().then(setPoolAllocation).catch(() => {})
     } catch (err) {
       console.error('Deploy failed:', err)
     } finally {
@@ -74,8 +85,8 @@ export default function App() {
             </h1>
             <p className="subtitle">Autonomous Wallet Guardian</p>
             <p className="tagline">
-              One command deploys 4 AI agents to <strong>protect</strong>,{' '}
-              <strong>grow</strong>, <strong>rebalance</strong>, and <strong>inherit</strong> your Uniswap positions.
+              One command deploys 5 AI agents to <strong>protect</strong>,{' '}
+              <strong>grow</strong>, <strong>rebalance</strong>, <strong>shield</strong>, and <strong>inherit</strong> your Uniswap positions.
               <br />
               Zero Solidity. Pure Python. Powered by PyVax.
             </p>
@@ -83,7 +94,7 @@ export default function App() {
             <div className="problem-statement">
               <div className="problem-header">
                 <span className="problem-header-tag">THE CHALLENGE</span>
-                <h2 className="problem-headline">$5B+ in Uniswap V3 TVL.<br />LPs face 4 unsolved problems:</h2>
+                <h2 className="problem-headline">$5B+ in Uniswap V3 TVL.<br />LPs face 5 unsolved problems:</h2>
               </div>
               <div className="problem-grid">
                 <div className="problem-card problem-card--guard">
@@ -140,6 +151,24 @@ export default function App() {
                   </div>
                 </div>
 
+                <div className="problem-card problem-card--mev">
+                  <div className="problem-card__glow" />
+                  <div className="problem-card__icon-wrap">
+                    <span className="problem-card__icon">🥪</span>
+                  </div>
+                  <div className="problem-card__content">
+                    <div className="problem-card__title-row">
+                      <span className="problem-card__status" />
+                      <h3 className="problem-card__title">MEV Extraction</h3>
+                    </div>
+                    <p className="problem-card__desc">Sandwich attacks and front-running silently extract value from every swap you make</p>
+                  </div>
+                  <div className="problem-card__severity">
+                    <span className="severity-bar"><span className="severity-fill severity-fill--high" /></span>
+                    <span className="severity-label">Critical</span>
+                  </div>
+                </div>
+
                 <div className="problem-card problem-card--legacy">
                   <div className="problem-card__glow" />
                   <div className="problem-card__icon-wrap">
@@ -161,7 +190,7 @@ export default function App() {
               <div className="problem-solve-wrap">
                 <div className="solve-line" />
                 <p className="problem-solve">
-                  <span className="solve-icon">✦</span> AEGIS solves all four.
+                  <span className="solve-icon">✦</span> AEGIS solves all five.
                 </p>
               </div>
             </div>
@@ -171,6 +200,7 @@ export default function App() {
               <span className="badge guard">🛡️ Guard</span>
               <span className="badge grow">📈 Grow</span>
               <span className="badge rebalance">🎯 Rebalance</span>
+              <span className="badge mev">🥪 MEV Shield</span>
               <span className="badge legacy">🏛️ Legacy</span>
             </div>
             <div className="safety-labels">
@@ -203,7 +233,7 @@ export default function App() {
                 <span className="step-icon">🤖</span>
               </div>
               <h3>Agents Deploy</h3>
-              <p>Groq AI parses your intent. Four specialized agents spawn and begin monitoring real pools.</p>
+              <p>Groq AI parses your intent. Five specialized agents spawn and begin monitoring real pools.</p>
             </div>
             <div className="step-connector">
               <div className="connector-line" />
@@ -223,7 +253,7 @@ export default function App() {
         {/* ── Architecture ── */}
         <section className="architecture-section">
           <h2 className="section-title">Multi-Agent Architecture</h2>
-          <p className="section-subtitle">Four coordinated agents with shared memory and real-time on-chain data</p>
+          <p className="section-subtitle">Five coordinated agents with shared memory and real-time on-chain data</p>
           <div className="arch-diagram">
             <div className="arch-row arch-input">
               <div className="arch-node arch-nlp">
@@ -254,6 +284,10 @@ export default function App() {
                 <span className="arch-node-icon">🎯</span>
                 <span className="arch-node-label">Rebalance</span>
               </div>
+              <div className="arch-node arch-agent-mev">
+                <span className="arch-node-icon">🥪</span>
+                <span className="arch-node-label">MEV Shield</span>
+              </div>
               <div className="arch-node arch-agent-legacy">
                 <span className="arch-node-icon">🏛️</span>
                 <span className="arch-node-label">Legacy</span>
@@ -282,8 +316,8 @@ export default function App() {
           <div className="tech-grid">
             <div className="tech-badge-card">
               <span className="tech-icon">🦄</span>
-              <span className="tech-name">Uniswap V3</span>
-              <span className="tech-desc">5 live pools monitored</span>
+              <span className="tech-name">Uniswap V3 + API</span>
+              <span className="tech-desc">Trading API + 5 live pools</span>
             </div>
             <div className="tech-badge-card">
               <span className="tech-icon">🔵</span>
@@ -314,7 +348,7 @@ export default function App() {
         </section>
 
         <footer className="landing-footer">
-          <p>Built for the <strong>Uniswap Hookathon</strong> · Lido Track Eligible · 2026</p>
+          <p>Built for the <strong>Classified Hack × Synthesis Hackathon</strong> · Uniswap + Lido + Base Tracks · 2026</p>
         </footer>
       </div>
       </>
@@ -331,6 +365,7 @@ export default function App() {
     status?.agents?.guard?.running,
     status?.agents?.grow?.running,
     status?.agents?.rebalance?.running,
+    status?.agents?.mev?.running,
     status?.agents?.legacy?.running,
   ].filter(Boolean).length
 
@@ -441,7 +476,7 @@ export default function App() {
           <div className="portfolio-icon">🤖</div>
           <div className="portfolio-info">
             <span className="portfolio-label">Active Agents</span>
-            <span className="portfolio-value">{activeAgents}/4</span>
+            <span className="portfolio-value">{activeAgents}/5</span>
           </div>
         </div>
         <div className="portfolio-card">
@@ -464,9 +499,16 @@ export default function App() {
       <div className="panels">
         <GuardPanel status={status?.agents?.guard ?? null} priceHistory={priceHistory} />
         <GrowPanel status={status?.agents?.grow ?? null} />
-        <LegacyPanel status={status?.agents?.legacy ?? null} />
         <RebalancePanel status={status?.agents?.rebalance ?? null} />
+        <MevPanel status={status?.agents?.mev ?? null} />
+        <LegacyPanel status={status?.agents?.legacy ?? null} />
       </div>
+
+      <SwapQuotePanel chain={status?.chain ?? 'ethereum'} />
+
+      <AnalyticsPanel lidoYield={lidoYield} poolAllocation={poolAllocation} />
+
+      <BacktestPanel results={backtestResults} />
 
       <ActivityFeed events={events} />
     </div>

@@ -20,6 +20,10 @@ from aegis.config import GrowConfig
 from aegis.memory import EventType, SharedMemory
 from aegis.uniswap import UniswapV3Client
 
+if __import__("typing").TYPE_CHECKING:
+    from aegis.uniswap_api import UniswapTradingAPI
+    from aegis.wallet import AegisWallet
+
 logger = logging.getLogger("aegis.grow")
 
 
@@ -31,10 +35,14 @@ class GrowAgent:
         config: GrowConfig,
         memory: SharedMemory,
         uniswap_client: UniswapV3Client,
+        uniswap_api: UniswapTradingAPI | None = None,
+        wallet: AegisWallet | None = None,
     ) -> None:
         self.config = config
         self.memory = memory
         self.uniswap = uniswap_client
+        self.uniswap_api = uniswap_api
+        self.wallet = wallet
         self.name = "grow"
         self._running = False
         self._vault_balance: Decimal = Decimal("0.00")
@@ -49,6 +57,9 @@ class GrowAgent:
         self._gas_too_high: bool = False
         self._gas_threshold_gwei: Decimal = Decimal("50.0")
         self._reasoning: list[str] = []
+        self._last_swap_route: dict[str, Any] = {}
+        self._last_swap_tx: dict[str, Any] = {}
+        self._total_swaps_executed: int = 0
 
     @property
     def status(self) -> dict[str, Any]:
@@ -65,6 +76,9 @@ class GrowAgent:
             "gas_price_gwei": str(self._gas_price_gwei),
             "gas_too_high": self._gas_too_high,
             "reasoning": self._reasoning[-1] if self._reasoning else "",
+            "swap_route": self._last_swap_route,
+            "last_swap_tx": self._last_swap_tx,
+            "total_swaps_executed": self._total_swaps_executed,
             "config": {
                 "compound_frequency_hours": self.config.compound_frequency_hours,
                 "savings_sweep_pct": str(self.config.savings_sweep_pct),
@@ -164,7 +178,10 @@ class GrowAgent:
         )
         if len(self._reasoning) > 10:
             self._reasoning = self._reasoning[-10:]
-        self.memory.publish(EventType.FEES_COMPOUNDED, self.name, {
+        swap_route = await self._fetch_swap_route()
+        swap_tx = await self._execute_compound_swap(fees)
+
+        event_data: dict[str, Any] = {
             "fees_collected": str(fees),
             "compounded": str(compound_amount),
             "swept_to_vault": str(sweep_amount),
@@ -172,7 +189,13 @@ class GrowAgent:
             "total_compounds": self._total_compounds,
             "source": source_tag,
             "message": f"📈 Compounded ${compound_amount} fees ({source_tag}) | ${sweep_amount} → savings vault (total: ${self._vault_balance})",
-        })
+        }
+        if swap_route:
+            event_data["swap_route"] = swap_route
+        if swap_tx and "tx_hash" in swap_tx:
+            event_data["swap_tx"] = swap_tx
+            event_data["message"] += f" | 🦄 Swap TX: {swap_tx.get('explorer_url', '')}"
+        self.memory.publish(EventType.FEES_COMPOUNDED, self.name, event_data)
 
         if self._vault_balance > Decimal("1.0") and self._total_compounds % 3 == 0:
             self.memory.publish(EventType.VAULT_DEPOSIT, self.name, {
@@ -209,6 +232,86 @@ class GrowAgent:
         total_fees = fees_0_usd + fees_1_usd
 
         return total_fees
+
+    async def _fetch_swap_route(self) -> dict[str, Any]:
+        """Fetch a Uniswap Trading API quote for the compound reinvestment route."""
+        if not self.uniswap_api or not self.uniswap_api.available:
+            return {}
+        try:
+            from aegis.uniswap_api import CHAIN_IDS
+            chain_id = CHAIN_IDS.get(self.uniswap.chain, 1)
+            quote = await self.uniswap_api.get_eth_to_usdc_quote(
+                amount_wei="1000000000000000",
+                chain_id=chain_id,
+            )
+            if "error" not in quote:
+                self._last_swap_route = quote
+                return quote
+        except Exception as exc:
+            logger.debug("Swap route fetch failed: %s", exc)
+        return {}
+
+    async def _execute_compound_swap(self, fees: Decimal) -> dict[str, Any]:
+        """Execute a real swap on Sepolia testnet to compound fees.
+
+        This makes the Uniswap Trading API **load-bearing** — the Grow
+        agent actually executes swaps rather than just fetching quotes.
+        Only runs on Sepolia (chainId 11155111) as a safety measure.
+        """
+        if not self.uniswap_api or not self.uniswap_api.available:
+            return {}
+        if not self.wallet or not self.wallet.available:
+            return {}
+
+        try:
+            from aegis.uniswap_api import CHAIN_IDS, TOKENS
+            sepolia_id = CHAIN_IDS.get("sepolia", 11155111)
+            tokens = TOKENS.get(sepolia_id, {})
+            weth = tokens.get("WETH", "")
+            usdc = tokens.get("USDC", "")
+            if not weth or not usdc:
+                return {}
+
+            amount_wei = str(int(fees * Decimal("10") ** 15))
+
+            swap_result = await self.uniswap_api.execute_swap(
+                token_in=weth,
+                token_out=usdc,
+                amount=amount_wei,
+                wallet_address=self.wallet.address,
+                chain_id=sepolia_id,
+            )
+            if "error" in swap_result:
+                logger.debug("Compound swap quote failed: %s", swap_result["error"])
+                return {}
+
+            swap_tx = swap_result.get("swap", swap_result)
+            tx_data = {
+                "to": swap_tx.get("to", ""),
+                "data": swap_tx.get("data", swap_tx.get("calldata", "0x")),
+                "value": swap_tx.get("value", "0"),
+                "chainId": sepolia_id,
+                "gas": swap_tx.get("gasLimit", swap_tx.get("gas", 300000)),
+            }
+
+            if not tx_data["to"]:
+                return {}
+
+            broadcast = await self.wallet.sign_and_send(tx_data)
+            if "error" in broadcast:
+                logger.debug("Compound swap broadcast failed: %s", broadcast["error"])
+                return {}
+
+            self._last_swap_tx = broadcast
+            self._total_swaps_executed += 1
+            self._reasoning.append(
+                f"🦄 Swap executed: {broadcast.get('explorer_url', '')} | #{self._total_swaps_executed}"
+            )
+            logger.info("Compound swap executed: %s", broadcast.get("explorer_url", ""))
+            return broadcast
+        except Exception as exc:
+            logger.debug("Compound swap failed: %s", exc)
+            return {}
 
     def _collect_fees_simulated(self) -> Decimal:
         """Generate simulated fees as fallback."""

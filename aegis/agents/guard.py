@@ -131,6 +131,15 @@ class GuardAgent:
                     "source": "rebalance_agent",
                     "message": "⚠️ Guard: Position out of range — increasing threat level",
                 })
+        elif event.event_type == EventType.MEV_DETECTED.value:
+            mev_type = event.data.get("type", "unknown")
+            if mev_type == "sandwich" and self._threat_level != "critical":
+                self._threat_level = "warning"
+                self.memory.publish(EventType.THREAT_DETECTED, self.name, {
+                    "type": "mev_sandwich",
+                    "source": "mev_agent",
+                    "message": "⚠️ Guard: MEV sandwich attack detected — elevating threat level",
+                })
         elif event.event_type == EventType.FEES_COMPOUNDED.value:
             fees_str = event.data.get("fees_collected", "0")
             try:

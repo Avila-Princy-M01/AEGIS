@@ -33,7 +33,7 @@ async def main(command: str | None = None) -> None:
     print("  🛡️  AEGIS — Autonomous Wallet Guardian")
     print("═" * 60)
     print(f"\n  Command: \"{cmd}\"\n")
-    print("  Deploying 4 agents...\n")
+    print("  Deploying 5 agents...\n")
 
     orchestrator = AegisOrchestrator()
     api_key = os.environ.get("GROQ_API_KEY", "")
@@ -43,6 +43,7 @@ async def main(command: str | None = None) -> None:
     print("  ✅ Grow Agent      — compounding fees")
     print("  ✅ Rebalance Agent — watching tick range")
     print("  ✅ Legacy Agent    — watching inactivity")
+    print("  ✅ MEV Agent       — detecting sandwich attacks")
     print(f"\n{'═' * 60}")
     print("  All agents running. Press Ctrl+C to stop.")
     print(f"{'═' * 60}\n")

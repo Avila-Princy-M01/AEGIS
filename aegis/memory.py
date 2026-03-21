@@ -1,7 +1,7 @@
 """Shared memory for inter-agent communication.
 
-All four AEGIS agents (Guard, Grow, Rebalance, Legacy) read and write to this
-shared memory store. It provides typed events and a pub/sub mechanism
+All five AEGIS agents (Guard, Grow, Rebalance, MEV, Legacy) read and write to
+this shared memory store. It provides typed events and a pub/sub mechanism
 so agents can react to each other's signals in real time.
 """
 
@@ -30,6 +30,13 @@ class EventType(str, Enum):
     POSITION_OUT_OF_RANGE = "position_out_of_range"
     REBALANCE_SUGGESTED = "rebalance_suggested"
     GAS_TOO_HIGH = "gas_too_high"
+    MEV_DETECTED = "mev_detected"
+    MEV_CLEARED = "mev_cleared"
+    DRY_RUN_TX = "dry_run_tx"
+    ENS_RESOLVED = "ens_resolved"
+    LIDO_YIELD_UPDATE = "lido_yield_update"
+    CROSS_POOL_ALLOCATION = "cross_pool_allocation"
+    BACKTEST_RESULT = "backtest_result"
     SYSTEM = "system"
 
 

@@ -1,7 +1,7 @@
-"""AEGIS Orchestrator — spawns and coordinates all four agents.
+"""AEGIS Orchestrator — spawns and coordinates all five agents.
 
 Takes a single natural-language command, parses it into config,
-then spawns Guard, Grow, Rebalance, and Legacy agents with shared memory.
+then spawns Guard, Grow, Rebalance, Legacy, and MEV agents with shared memory.
 Creates a UniswapV3Client for real on-chain data.
 """
 
@@ -16,11 +16,15 @@ from typing import Any
 from aegis.agents.grow import GrowAgent
 from aegis.agents.guard import GuardAgent
 from aegis.agents.legacy import LegacyAgent
+from aegis.agents.mev import MevAgent
 from aegis.agents.rebalance import RebalanceAgent
+from aegis.analytics import Backtester, CrossPoolAllocator, LidoYieldComparator
 from aegis.config import AegisConfig
 from aegis.memory import EventType, SharedMemory
 from aegis.nlp_parser import parse_command
 from aegis.uniswap import UniswapV3Client
+from aegis.uniswap_api import CHAIN_IDS, TOKENS, UniswapTradingAPI
+from aegis.wallet import AegisWallet
 
 logger = logging.getLogger("aegis")
 
@@ -35,7 +39,14 @@ class AegisOrchestrator:
         self.grow: GrowAgent | None = None
         self.legacy: LegacyAgent | None = None
         self.rebalance: RebalanceAgent | None = None
+        self.mev: MevAgent | None = None
         self.uniswap: UniswapV3Client | None = None
+        self._lido_comparator: LidoYieldComparator | None = None
+        self._pool_allocator: CrossPoolAllocator | None = None
+        self._backtester: Backtester | None = None
+        self._uniswap_api: UniswapTradingAPI | None = None
+        self._wallet: AegisWallet | None = None
+        self._agent_log: list[dict[str, Any]] = []
         self._tasks: list[asyncio.Task[None]] = []
         self._started = False
         self._price_history: list[dict[str, Any]] = []
@@ -68,6 +79,7 @@ class AegisOrchestrator:
                 "grow": self.grow.status if self.grow else None,
                 "legacy": self.legacy.status if self.legacy else None,
                 "rebalance": self.rebalance.status if self.rebalance else None,
+                "mev": self.mev.status if self.mev else None,
             },
             "memory_events": len(self.memory.get_events(limit=999)),
             "available_pools": self.uniswap.available_pools if self.uniswap else [],
@@ -102,14 +114,29 @@ class AegisOrchestrator:
 
         self.uniswap = UniswapV3Client(chain=chain, alchemy_key=alchemy_key)
 
+        uniswap_api_key = os.environ.get("UNISWAP_API_KEY", "")
+        self._uniswap_api = UniswapTradingAPI(api_key=uniswap_api_key) if uniswap_api_key else None
+
+        self._wallet = AegisWallet()
+
         self.guard = GuardAgent(self.config.guard, self.memory, self.uniswap)
-        self.grow = GrowAgent(self.config.grow, self.memory, self.uniswap)
+        self.grow = GrowAgent(self.config.grow, self.memory, self.uniswap, uniswap_api=self._uniswap_api, wallet=self._wallet)
         self.legacy = LegacyAgent(self.config.legacy, self.memory)
         self.rebalance = RebalanceAgent(self.config.rebalance, self.memory, self.uniswap)
+        self.mev = MevAgent(self.config.mev, self.memory, self.uniswap, uniswap_api=self._uniswap_api)
+
+        self._lido_comparator = LidoYieldComparator(self.memory, self.uniswap)
+        self._pool_allocator = CrossPoolAllocator(self.memory, self.uniswap)
+        self._backtester = Backtester(self.memory)
+
+        self._log_agent_action("orchestrator", "deploy", {
+            "command": command, "chain": chain, "live": self.uniswap.live,
+            "wallet": self._wallet.address if self._wallet and self._wallet.available else "none",
+        })
 
         source = "🟢 LIVE on-chain" if self.uniswap.live else "🟡 Simulation mode"
         self.memory.publish(EventType.SYSTEM, "orchestrator", {
-            "message": f"🚀 AEGIS deployed — 4 agents protecting your wallet — {source}",
+            "message": f"🚀 AEGIS deployed — 5 agents protecting your wallet — {source}",
             "command": command,
             "live_data": self.uniswap.live,
             "chain": chain,
@@ -120,11 +147,12 @@ class AegisOrchestrator:
             asyncio.create_task(self.grow.start()),
             asyncio.create_task(self.legacy.start()),
             asyncio.create_task(self.rebalance.start()),
+            asyncio.create_task(self.mev.start()),
             asyncio.create_task(self._track_price_history()),
         ]
         self._started = True
 
-        logger.info("All 4 AEGIS agents deployed (%s)", source)
+        logger.info("All 5 AEGIS agents deployed (%s)", source)
         return self.status
 
     async def stop(self) -> None:
@@ -137,6 +165,8 @@ class AegisOrchestrator:
             self.legacy.stop()
         if self.rebalance:
             self.rebalance.stop()
+        if self.mev:
+            self.mev.stop()
 
         for task in self._tasks:
             task.cancel()
@@ -167,6 +197,53 @@ class AegisOrchestrator:
             return {"error": "Rebalance agent not deployed"}
         return await self.rebalance.simulate_out_of_range()
 
+    async def simulate_mev_attack(self, attack_type: str = "sandwich") -> dict[str, Any]:
+        """Trigger a simulated MEV attack for demo."""
+        if not self.mev:
+            return {"error": "MEV agent not deployed"}
+        return await self.mev.simulate_mev_attack(attack_type)
+
+    async def compare_lido_yield(self) -> dict[str, Any]:
+        """Compare LP yield vs Lido staking yield."""
+        if not self._lido_comparator:
+            return {"error": "Analytics not initialized"}
+        return await self._lido_comparator.compare()
+
+    async def allocate_cross_pool(self) -> dict[str, Any]:
+        """Get optimal cross-pool capital allocation."""
+        if not self._pool_allocator:
+            return {"error": "Analytics not initialized"}
+        return await self._pool_allocator.allocate()
+
+    async def run_backtest(self, days: int = 30) -> dict[str, Any]:
+        """Run a historical backtest simulation."""
+        if not self._backtester:
+            return {"error": "Analytics not initialized"}
+        return await self._backtester.run(days)
+
+    async def get_swap_quote(
+        self,
+        token_in: str = "WETH",
+        token_out: str = "USDC",
+        amount: str = "1000000000000000000",
+        chain: str = "",
+    ) -> dict[str, Any]:
+        """Get a real swap quote from the Uniswap Trading API."""
+        if not self._uniswap_api or not self._uniswap_api.available:
+            return {"error": "Uniswap Trading API not configured"}
+        active_chain = chain or (self.uniswap.chain if self.uniswap else "ethereum")
+        chain_id = CHAIN_IDS.get(active_chain, 1)
+        from aegis.uniswap_api import TOKENS
+        tokens = TOKENS.get(chain_id, TOKENS[1])
+        token_in_addr = tokens.get(token_in, token_in)
+        token_out_addr = tokens.get(token_out, token_out)
+        return await self._uniswap_api.get_quote(
+            token_in=token_in_addr,
+            token_out=token_out_addr,
+            amount=amount,
+            chain_id=chain_id,
+        )
+
     async def switch_chain(self, chain: str) -> dict[str, Any]:
         """Switch to a different chain and re-deploy all agents."""
         if not self._started or not self.config:
@@ -184,10 +261,18 @@ class AegisOrchestrator:
 
         self.uniswap = UniswapV3Client(chain=chain, alchemy_key=alchemy_key)
 
+        uniswap_api_key = os.environ.get("UNISWAP_API_KEY", "")
+        self._uniswap_api = UniswapTradingAPI(api_key=uniswap_api_key) if uniswap_api_key else None
+
         self.guard = GuardAgent(self.config.guard, self.memory, self.uniswap)
-        self.grow = GrowAgent(self.config.grow, self.memory, self.uniswap)
+        self.grow = GrowAgent(self.config.grow, self.memory, self.uniswap, uniswap_api=self._uniswap_api, wallet=self._wallet)
         self.legacy = LegacyAgent(self.config.legacy, self.memory)
         self.rebalance = RebalanceAgent(self.config.rebalance, self.memory, self.uniswap)
+        self.mev = MevAgent(self.config.mev, self.memory, self.uniswap, uniswap_api=self._uniswap_api)
+
+        self._lido_comparator = LidoYieldComparator(self.memory, self.uniswap)
+        self._pool_allocator = CrossPoolAllocator(self.memory, self.uniswap)
+        self._backtester = Backtester(self.memory)
 
         source = "🟢 LIVE on-chain" if self.uniswap.live else "🟡 Simulation mode"
         self.memory.publish(EventType.SYSTEM, "orchestrator", {
@@ -201,6 +286,7 @@ class AegisOrchestrator:
             asyncio.create_task(self.grow.start()),
             asyncio.create_task(self.legacy.start()),
             asyncio.create_task(self.rebalance.start()),
+            asyncio.create_task(self.mev.start()),
             asyncio.create_task(self._track_price_history()),
         ]
         self._started = True
@@ -216,6 +302,94 @@ class AegisOrchestrator:
     def get_price_history(self) -> list[dict[str, Any]]:
         """Return recent price history for chart rendering."""
         return self._price_history[-100:]
+
+    async def execute_swap(
+        self,
+        token_in: str = "WETH",
+        token_out: str = "USDC",
+        amount: str = "100000000000000000",
+    ) -> dict[str, Any]:
+        """Execute a real swap on Sepolia testnet via Uniswap Trading API."""
+        if not self._uniswap_api or not self._uniswap_api.available:
+            return {"error": "Uniswap Trading API not configured"}
+        if not self._wallet or not self._wallet.available:
+            return {"error": "Wallet not available (set WALLET_PRIVATE_KEY)"}
+
+        sepolia_id = CHAIN_IDS.get("sepolia", 11155111)
+        tokens = TOKENS.get(sepolia_id, {})
+        token_in_addr = tokens.get(token_in, token_in)
+        token_out_addr = tokens.get(token_out, token_out)
+
+        swap_result = await self._uniswap_api.execute_swap(
+            token_in=token_in_addr,
+            token_out=token_out_addr,
+            amount=amount,
+            wallet_address=self._wallet.address,
+            chain_id=sepolia_id,
+        )
+        if "error" in swap_result:
+            self._log_agent_action("orchestrator", "swap_failed", swap_result)
+            return swap_result
+
+        swap_tx = swap_result.get("swap", swap_result)
+        tx_data = {
+            "to": swap_tx.get("to", ""),
+            "data": swap_tx.get("data", swap_tx.get("calldata", "0x")),
+            "value": swap_tx.get("value", "0"),
+            "chainId": sepolia_id,
+            "gas": swap_tx.get("gasLimit", swap_tx.get("gas", 300000)),
+        }
+
+        if not tx_data["to"]:
+            self._log_agent_action("orchestrator", "swap_no_target", swap_result)
+            return {"error": "No target address in swap response", "raw": swap_result}
+
+        broadcast = await self._wallet.sign_and_send(tx_data)
+        if "error" in broadcast:
+            self._log_agent_action("orchestrator", "swap_broadcast_failed", broadcast)
+            return broadcast
+
+        self.memory.publish(EventType.SYSTEM, "orchestrator", {
+            "message": f"🦄 Swap executed on Sepolia: {broadcast.get('explorer_url', '')}",
+            "tx_hash": broadcast.get("tx_hash", ""),
+        })
+
+        self._log_agent_action("orchestrator", "swap_executed", {
+            "tx_hash": broadcast.get("tx_hash", ""),
+            "explorer_url": broadcast.get("explorer_url", ""),
+            "token_in": token_in,
+            "token_out": token_out,
+            "amount": amount,
+        })
+
+        result = {**broadcast, "quote": swap_result.get("quote", {})}
+        return result
+
+    def _log_agent_action(
+        self, agent: str, action: str, data: dict[str, Any],
+    ) -> None:
+        """Append an entry to the structured agent execution log."""
+        entry = {
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "agent": agent,
+            "action": action,
+            "data": data,
+        }
+        self._agent_log.append(entry)
+        self._save_agent_log()
+
+    def _save_agent_log(self) -> None:
+        """Persist agent_log.json to disk."""
+        import json
+        from pathlib import Path
+        log_path = Path("agent_log.json")
+        try:
+            log_path.write_text(
+                json.dumps(self._agent_log[-500:], indent=2, default=str),
+                encoding="utf-8",
+            )
+        except Exception as exc:
+            logger.debug("Failed to save agent_log.json: %s", exc)
 
     async def _track_price_history(self) -> None:
         """Background task to record price snapshots and chain stats."""

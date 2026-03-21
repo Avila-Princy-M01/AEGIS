@@ -9,9 +9,15 @@ Endpoints:
     POST  /api/simulate/threat     — trigger simulated threat (demo)
     POST  /api/simulate/inherit    — trigger simulated inheritance (demo)
     POST  /api/simulate/rebalance  — trigger simulated out-of-range (demo)
+    POST  /api/simulate/mev        — trigger simulated MEV attack (demo)
     POST  /api/switch-chain        — switch blockchain (ethereum / base)
     POST  /api/demo-speed          — set Legacy timer speed (demo)
     POST  /api/stop                — stop all agents
+    GET   /api/analytics/lido      — Lido yield comparison
+    GET   /api/analytics/pools     — cross-pool capital allocation
+    POST  /api/analytics/backtest  — run historical backtest
+    POST  /api/swap-quote          — get real Uniswap Trading API swap quote
+    POST  /api/swap-execute         — execute a real swap on Sepolia testnet
     WS    /ws/feed                 — real-time event stream
 """
 
@@ -52,8 +58,29 @@ class SwitchChainRequest(BaseModel):
     chain: str = "ethereum"
 
 
+class SimulateMevRequest(BaseModel):
+    attack_type: str = "sandwich"
+
+
 class DemoSpeedRequest(BaseModel):
     multiplier: float = 86400.0
+
+
+class BacktestRequest(BaseModel):
+    days: int = 30
+
+
+class SwapQuoteRequest(BaseModel):
+    token_in: str = "WETH"
+    token_out: str = "USDC"
+    amount: str = "1000000000000000000"
+    chain: str = ""
+
+
+class SwapExecuteRequest(BaseModel):
+    token_in: str = "WETH"
+    token_out: str = "USDC"
+    amount: str = "100000000000000000"
 
 
 class ConnectionManager:
@@ -158,6 +185,11 @@ async def simulate_out_of_range() -> dict[str, Any]:
     return await orchestrator.simulate_out_of_range()
 
 
+@app.post("/api/simulate/mev")
+async def simulate_mev(req: SimulateMevRequest) -> dict[str, Any]:
+    return await orchestrator.simulate_mev_attack(req.attack_type)
+
+
 @app.get("/api/price-history")
 async def get_price_history() -> list[dict[str, Any]]:
     return orchestrator.get_price_history()
@@ -179,6 +211,45 @@ async def set_demo_speed(req: DemoSpeedRequest) -> dict[str, Any]:
 async def stop_agents() -> dict[str, Any]:
     await orchestrator.stop()
     return {"stopped": True}
+
+
+@app.get("/api/analytics/lido")
+async def lido_yield() -> dict[str, Any]:
+    """Compare LP yield vs Lido staking yield."""
+    return await orchestrator.compare_lido_yield()
+
+
+@app.get("/api/analytics/pools")
+async def pool_allocation() -> dict[str, Any]:
+    """Get optimal cross-pool capital allocation."""
+    return await orchestrator.allocate_cross_pool()
+
+
+@app.post("/api/analytics/backtest")
+async def run_backtest(req: BacktestRequest) -> dict[str, Any]:
+    """Run a historical backtest simulation."""
+    return await orchestrator.run_backtest(req.days)
+
+
+@app.post("/api/swap-quote")
+async def swap_quote(req: SwapQuoteRequest) -> dict[str, Any]:
+    """Get a real swap quote from the Uniswap Trading API."""
+    return await orchestrator.get_swap_quote(
+        token_in=req.token_in,
+        token_out=req.token_out,
+        amount=req.amount,
+        chain=req.chain,
+    )
+
+
+@app.post("/api/swap-execute")
+async def swap_execute(req: SwapExecuteRequest) -> dict[str, Any]:
+    """Execute a real swap on Sepolia testnet via Uniswap Trading API."""
+    return await orchestrator.execute_swap(
+        token_in=req.token_in,
+        token_out=req.token_out,
+        amount=req.amount,
+    )
 
 
 @app.websocket("/ws/feed")

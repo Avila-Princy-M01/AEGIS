@@ -10,6 +10,7 @@ const AGENT_COLORS: Record<string, string> = {
   grow: '#10b981',
   legacy: '#8b5cf6',
   rebalance: '#3b82f6',
+  mev: '#f97316',
   orchestrator: '#6366f1',
 }
 

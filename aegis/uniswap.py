@@ -134,6 +134,7 @@ NONFUNGIBLE_POSITION_MANAGER = "0xC36442b4a4522E871399CD717aBDD847Ab11FE88"
 DEMO_POSITION_IDS: dict[str, list[int]] = {
     "ethereum": [728370, 727643, 726000],
     "base": [100000],
+    "sepolia": [],
 }
 
 CHAIN_PRESETS: dict[str, dict[str, Any]] = {
@@ -141,11 +142,11 @@ CHAIN_PRESETS: dict[str, dict[str, Any]] = {
         "rpc_public": "https://eth.llamarpc.com",
         "rpc_fallbacks": [
             "https://eth.llamarpc.com",
-            "https://rpc.ankr.com/eth",
             "https://ethereum-rpc.publicnode.com",
             "https://1rpc.io/eth",
             "https://eth.drpc.org",
             "https://cloudflare-eth.com",
+            "https://rpc.mevblocker.io",
         ],
         "rpc_alchemy": "https://eth-mainnet.g.alchemy.com/v2/{key}",
         "factory": UNISWAP_V3_FACTORY,
@@ -172,9 +173,9 @@ CHAIN_PRESETS: dict[str, dict[str, Any]] = {
         "rpc_fallbacks": [
             "https://mainnet.base.org",
             "https://base.llamarpc.com",
-            "https://rpc.ankr.com/base",
             "https://base-rpc.publicnode.com",
             "https://1rpc.io/base",
+            "https://base.drpc.org",
         ],
         "rpc_alchemy": "https://base-mainnet.g.alchemy.com/v2/{key}",
         "factory": UNISWAP_V3_FACTORY,
@@ -186,6 +187,27 @@ CHAIN_PRESETS: dict[str, dict[str, Any]] = {
             {"address": "0xd0b53D9277642d899DF5C87A3966A349A798F224", "label": "ETH/USDC 0.05%", "token0_decimals": 18, "token1_decimals": 6, "invert_price": False},
         ],
         "pool_label": "ETH/USDC 0.05%",
+        "token0_decimals": 18,
+        "token1_decimals": 6,
+        "invert_price": False,
+    },
+    "sepolia": {
+        "rpc_public": "https://rpc.sepolia.org",
+        "rpc_fallbacks": [
+            "https://rpc.sepolia.org",
+            "https://ethereum-sepolia-rpc.publicnode.com",
+            "https://sepolia.drpc.org",
+        ],
+        "rpc_alchemy": "https://eth-sepolia.g.alchemy.com/v2/{key}",
+        "factory": "0x0227628f3F023bb0B980b67D528571c95c6DaC1c",
+        "nft_manager": "0x1238536071E1c677A632429e3655c799b22cDA52",
+        "weth": "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14",
+        "usdc": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+        "default_pool": "0x6418EEC70f50913ff0d756B48d32Ce7C02b47C47",
+        "pools": [
+            {"address": "0x6418EEC70f50913ff0d756B48d32Ce7C02b47C47", "label": "WETH/USDC (Sepolia)", "token0_decimals": 18, "token1_decimals": 6, "invert_price": False},
+        ],
+        "pool_label": "WETH/USDC (Sepolia)",
         "token0_decimals": 18,
         "token1_decimals": 6,
         "invert_price": False,
@@ -344,9 +366,10 @@ class UniswapV3Client:
         endpoint before retrying. Other transient errors use standard
         exponential backoff.
         """
-        rate_limit_patterns = ("429", "rate limit", "too many requests")
+        rate_limit_patterns = ("429", "rate limit", "too many requests", "unauthorized")
         transient_patterns = ("header not found", "request failed", "connection",
-                              "timeout", "rate limit", "429", "502", "503")
+                              "timeout", "rate limit", "429", "502", "503",
+                              "unauthorized")
         last_exc: Exception | None = None
 
         for attempt in range(max_retries):

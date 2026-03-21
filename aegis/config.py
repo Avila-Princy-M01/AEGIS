@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from decimal import Decimal
+from typing import Any
 
 
 @dataclass
@@ -66,6 +67,17 @@ class LegacyConfig:
 
 
 @dataclass
+class MevConfig:
+    """MEV Protection agent parameters."""
+
+    sandwich_detection_enabled: bool = True
+    price_impact_threshold_pct: Decimal = Decimal("0.5")
+    frontrun_window_blocks: int = 2
+    alert_on_detection: bool = True
+    known_mev_bots: list[str] = field(default_factory=list)
+
+
+@dataclass
 class AegisConfig:
     """Root configuration for the AEGIS multi-agent system."""
 
@@ -73,6 +85,7 @@ class AegisConfig:
     grow: GrowConfig = field(default_factory=GrowConfig)
     legacy: LegacyConfig = field(default_factory=LegacyConfig)
     rebalance: RebalanceConfig = field(default_factory=RebalanceConfig)
+    mev: MevConfig = field(default_factory=MevConfig)
     chain: ChainConfig = field(default_factory=ChainConfig)
     owner_address: str = ""
     groq_api_key: str = ""

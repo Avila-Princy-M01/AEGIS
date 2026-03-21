@@ -14,6 +14,7 @@ from decimal import Decimal
 from typing import Any
 
 from aegis.config import LegacyConfig
+from aegis.ens import is_ens_name, resolve_ens_name
 from aegis.memory import EventType, SharedMemory
 
 logger = logging.getLogger("aegis.legacy")
@@ -152,12 +153,30 @@ class LegacyAgent:
             await asyncio.sleep(2)
 
         for b in self.config.beneficiaries:
+            display_addr = b.address
+            resolved_addr = b.address
+
+            if is_ens_name(b.address):
+                addr = await resolve_ens_name(b.address)
+                if addr:
+                    resolved_addr = addr
+                    display_addr = f"{b.address} ({addr[:10]}...)"
+                    self.memory.publish(EventType.ENS_RESOLVED, self.name, {
+                        "ens_name": b.address,
+                        "address": addr,
+                        "message": f"🔗 Resolved {b.address} → {addr[:10]}...",
+                    })
+                else:
+                    display_addr = f"{b.address} (unresolved)"
+                    logger.warning("ENS resolution failed for %s", b.address)
+
             self.memory.publish(EventType.INHERITANCE_TRIGGERED, self.name, {
                 "phase": "distributing",
-                "beneficiary": b.address,
+                "beneficiary": resolved_addr,
+                "ens_name": b.address if is_ens_name(b.address) else "",
                 "share_pct": str(b.share_pct),
                 "label": b.label,
-                "message": f"💸 Distributing {b.share_pct}% to {b.label or b.address[:10] + '...'}",
+                "message": f"💸 Distributing {b.share_pct}% to {b.label or display_addr[:20] + '...'}",
             })
             await asyncio.sleep(1)
 

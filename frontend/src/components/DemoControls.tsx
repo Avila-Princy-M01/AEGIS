@@ -25,6 +25,13 @@ export function DemoControls() {
         🎯 Out of Range
       </button>
       <button
+        className="demo-btn mev"
+        onClick={() => api.simulateMev('sandwich')}
+        title="Simulate a sandwich attack"
+      >
+        🥪 Simulate MEV
+      </button>
+      <button
         className="demo-btn checkin"
         onClick={() => api.checkIn()}
         title="Check in to reset Legacy timer"

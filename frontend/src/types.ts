@@ -46,6 +46,7 @@ export interface GrowStatus extends AgentStatus {
   gas_price_gwei?: string
   gas_too_high?: boolean
   reasoning?: string
+  swap_route?: SwapQuote
   config?: {
     compound_frequency_hours: number
     savings_sweep_pct: string
@@ -74,6 +75,26 @@ export interface RebalanceStatus extends AgentStatus {
   }
 }
 
+export interface MevStatus extends AgentStatus {
+  paused: boolean
+  mev_level: 'safe' | 'warning' | 'critical'
+  live_data?: boolean
+  chain?: string
+  token_pair?: string
+  sandwich_count: number
+  frontrun_count: number
+  total_mev_detected: number
+  estimated_mev_cost_usd: string
+  last_alert: string
+  reasoning?: string
+  safe_route?: SwapQuote
+  config?: {
+    sandwich_detection: boolean
+    price_impact_threshold: string
+    frontrun_window: number
+  }
+}
+
 export interface PricePoint {
   timestamp: number
   price: string
@@ -89,6 +110,72 @@ export interface LegacyStatus extends AgentStatus {
   inheritance_triggered: boolean
   reasoning?: string
   beneficiaries: { address: string; share_pct: string; label: string }[]
+}
+
+export interface LidoYieldData {
+  lp_apr_pct: string
+  staking_apr_pct: string
+  recommendation: 'lp' | 'stake'
+  spread_pct: string
+  reasoning: string
+}
+
+export interface PoolAllocationEntry {
+  pool: string
+  weight_pct: string
+  fee_apr: string
+  il_risk: string
+  reasoning: string
+}
+
+export interface PoolAllocationData {
+  allocations: PoolAllocationEntry[]
+  strategy_name: string
+}
+
+export interface SwapRoutePool {
+  type: string
+  address: string
+  fee: string
+  tokenIn: string
+  tokenOut: string
+}
+
+export interface SwapQuote {
+  token_in: string
+  token_out: string
+  chain_id: number
+  amount_in: string
+  amount_out: string
+  gas_estimate: string
+  gas_usd: string
+  price_impact: string
+  routing: string
+  route: SwapRoutePool[]
+  slippage: number
+  source: string
+  error?: string
+}
+
+export interface SwapExecution {
+  tx_hash: string
+  explorer_url: string
+  chain_id: number
+  from: string
+  status: string
+  quote?: SwapQuote
+  error?: string
+}
+
+export interface BacktestResult {
+  period_days: number
+  total_fees_earned: string
+  total_il_loss: string
+  gas_costs: string
+  net_pnl: string
+  max_drawdown_pct: string
+  sharpe_ratio: string
+  reasoning: string
 }
 
 export interface SystemStatus {
@@ -108,6 +195,7 @@ export interface SystemStatus {
     grow: GrowStatus | null
     legacy: LegacyStatus | null
     rebalance: RebalanceStatus | null
+    mev: MevStatus | null
   }
   memory_events: number
   config: Record<string, unknown>

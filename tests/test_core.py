@@ -10,9 +10,10 @@ from decimal import Decimal
 
 import pytest
 
-from aegis.config import AegisConfig, GuardConfig, GrowConfig, LegacyConfig, RebalanceConfig
+from aegis.config import AegisConfig, GuardConfig, GrowConfig, LegacyConfig, MevConfig, RebalanceConfig
 from aegis.memory import EventType, MemoryEvent, SharedMemory
 from aegis.uniswap import UniswapV3Client
+from aegis.uniswap_api import UniswapTradingAPI, CHAIN_IDS, TOKENS
 
 
 # ── Import Tests ──────────────────────────────────────────────────
@@ -23,20 +24,29 @@ def test_all_modules_import():
     from aegis.agents.grow import GrowAgent
     from aegis.agents.legacy import LegacyAgent
     from aegis.agents.rebalance import RebalanceAgent
+    from aegis.agents.mev import MevAgent
     from aegis.orchestrator import AegisOrchestrator
     from aegis.server import app
+    from aegis.ens import ENSResolver, is_ens_name
+    from aegis.analytics import LidoYieldComparator, CrossPoolAllocator, Backtester
     assert GuardAgent is not None
     assert GrowAgent is not None
     assert LegacyAgent is not None
     assert RebalanceAgent is not None
+    assert MevAgent is not None
     assert AegisOrchestrator is not None
     assert app is not None
+    assert ENSResolver is not None
+    assert is_ens_name is not None
+    assert LidoYieldComparator is not None
+    assert CrossPoolAllocator is not None
+    assert Backtester is not None
 
 
 def test_agents_init_export():
-    """The agents __init__ exports all four agents."""
-    from aegis.agents import GuardAgent, GrowAgent, LegacyAgent, RebalanceAgent
-    assert all(cls is not None for cls in [GuardAgent, GrowAgent, LegacyAgent, RebalanceAgent])
+    """The agents __init__ exports all five agents."""
+    from aegis.agents import GuardAgent, GrowAgent, LegacyAgent, MevAgent, RebalanceAgent
+    assert all(cls is not None for cls in [GuardAgent, GrowAgent, LegacyAgent, MevAgent, RebalanceAgent])
 
 
 # ── Config Tests ──────────────────────────────────────────────────
@@ -50,6 +60,9 @@ def test_default_config():
     assert cfg.rebalance.range_width_ticks == 4000
     assert cfg.rebalance.auto_rebalance is False
     assert cfg.chain.chain == "ethereum"
+    assert cfg.mev.sandwich_detection_enabled is True
+    assert cfg.mev.price_impact_threshold_pct == Decimal("0.5")
+    assert cfg.mev.frontrun_window_blocks == 2
 
 
 def test_rebalance_config_fields():
@@ -103,6 +116,9 @@ def test_memory_event_types():
         "fees_compounded", "check_in", "inheritance_triggered",
         "position_out_of_range", "rebalance_suggested", "gas_too_high",
         "agent_started", "agent_stopped", "system",
+        "mev_detected", "mev_cleared", "dry_run_tx",
+        "ens_resolved", "lido_yield_update", "cross_pool_allocation",
+        "backtest_result",
     ]
     actual = [e.value for e in EventType]
     for name in expected:
@@ -310,3 +326,299 @@ def test_legacy_has_reasoning(tmp_path):
     mem = SharedMemory(workspace_dir=str(tmp_path))
     agent = LegacyAgent(LegacyConfig(), mem)
     assert "reasoning" in agent.status
+
+
+# ── MEV Agent Tests ──────────────────────────────────────────────
+
+def test_mev_agent_instantiates(tmp_path):
+    """MevAgent can be instantiated with defaults."""
+    from aegis.agents.mev import MevAgent
+    mem = SharedMemory(workspace_dir=str(tmp_path))
+    client = UniswapV3Client(chain="ethereum")
+    agent = MevAgent(MevConfig(), mem, client)
+    assert agent.name == "mev"
+
+
+def test_mev_agent_status_fields(tmp_path):
+    """MevAgent status includes all expected fields."""
+    from aegis.agents.mev import MevAgent
+    mem = SharedMemory(workspace_dir=str(tmp_path))
+    client = UniswapV3Client(chain="ethereum")
+    agent = MevAgent(MevConfig(), mem, client)
+    status = agent.status
+    assert "mev_level" in status
+    assert "sandwich_count" in status
+    assert "frontrun_count" in status
+    assert "total_mev_detected" in status
+    assert "estimated_mev_cost_usd" in status
+    assert "reasoning" in status
+    assert status["mev_level"] == "safe"
+    assert status["sandwich_count"] == 0
+
+
+def test_mev_config_defaults():
+    """MevConfig has all expected default fields."""
+    cfg = MevConfig()
+    assert cfg.sandwich_detection_enabled is True
+    assert cfg.price_impact_threshold_pct == Decimal("0.5")
+    assert cfg.frontrun_window_blocks == 2
+    assert cfg.alert_on_detection is True
+    assert cfg.known_mev_bots == []
+
+
+# ── Uniswap Trading API Tests ──
+
+
+def test_uniswap_api_no_key(monkeypatch):
+    """UniswapTradingAPI without key is not available."""
+    monkeypatch.delenv("UNISWAP_API_KEY", raising=False)
+    api = UniswapTradingAPI(api_key="")
+    assert not api.available
+
+
+def test_uniswap_api_with_key():
+    """UniswapTradingAPI with key is available."""
+    api = UniswapTradingAPI(api_key="test_key_123")
+    assert api.available
+
+
+def test_uniswap_api_chain_ids():
+    """Chain IDs are correctly mapped."""
+    assert CHAIN_IDS["ethereum"] == 1
+    assert CHAIN_IDS["base"] == 8453
+
+
+def test_uniswap_api_tokens():
+    """Token addresses are defined for Ethereum and Base."""
+    assert "WETH" in TOKENS[1]
+    assert "USDC" in TOKENS[1]
+    assert "wstETH" in TOKENS[1]
+    assert "WETH" in TOKENS[8453]
+    assert "USDC" in TOKENS[8453]
+
+
+def test_uniswap_api_parse_quote():
+    """Quote parsing extracts the right fields."""
+    api = UniswapTradingAPI(api_key="test")
+    raw = {
+        "quote": {
+            "input": {"amount": "1000000000000000000"},
+            "output": {"amount": "2151230000"},
+            "gasUseEstimate": "150000",
+            "gasUseEstimateUSD": "3.45",
+            "priceImpact": "0.01",
+            "slippage": {"tolerance": 0.5},
+            "route": [[
+                {
+                    "type": "v3-pool",
+                    "address": "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8",
+                    "fee": "3000",
+                    "tokenIn": {"symbol": "WETH"},
+                    "tokenOut": {"symbol": "USDC"},
+                }
+            ]],
+        },
+        "routing": "CLASSIC",
+    }
+    parsed = api._parse_quote(raw, "0xWETH", "0xUSDC", 1)
+    assert parsed["amount_in"] == "1000000000000000000"
+    assert parsed["amount_out"] == "2151230000"
+    assert parsed["gas_usd"] == "3.45"
+    assert parsed["routing"] == "CLASSIC"
+    assert parsed["source"] == "uniswap_trading_api"
+    assert len(parsed["route"]) == 1
+    assert parsed["route"][0]["type"] == "v3-pool"
+
+
+@pytest.mark.asyncio
+async def test_uniswap_api_quote_no_key(monkeypatch):
+    """get_quote returns error when no API key."""
+    monkeypatch.delenv("UNISWAP_API_KEY", raising=False)
+    api = UniswapTradingAPI(api_key="")
+    result = await api.get_quote("0xA", "0xB", "1000")
+    assert "error" in result
+
+
+# ── ENS Tests ────────────────────────────────────────────────────
+
+def test_ens_is_ens_name():
+    """is_ens_name correctly identifies ENS names."""
+    from aegis.ens import is_ens_name
+    assert is_ens_name("vitalik.eth") is True
+    assert is_ens_name("family.eth") is True
+    assert is_ens_name("a.b.eth") is True
+    assert is_ens_name(".eth") is False
+    assert is_ens_name("notens") is False
+    assert is_ens_name("0x1234") is False
+    assert is_ens_name("") is False
+    assert is_ens_name(None) is False  # type: ignore[arg-type]
+
+
+def test_ens_resolver_no_web3(tmp_path):
+    """ENSResolver gracefully handles missing web3."""
+    from aegis.ens import ENSResolver
+    resolver = ENSResolver(chain="ethereum")
+    assert resolver.cache_size == 0
+
+
+# ── Analytics Tests ──────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_backtester_produces_valid_result(tmp_path):
+    """Backtester returns all expected fields."""
+    from aegis.analytics import Backtester
+    mem = SharedMemory(workspace_dir=str(tmp_path))
+    bt = Backtester(mem)
+    result = await bt.run(days=7)
+    assert "period_days" in result
+    assert result["period_days"] == 7
+    assert "total_fees_earned" in result
+    assert "total_il_loss" in result
+    assert "gas_costs" in result
+    assert "net_pnl" in result
+    assert "max_drawdown_pct" in result
+    assert "sharpe_ratio" in result
+    assert "reasoning" in result
+
+
+@pytest.mark.asyncio
+async def test_lido_yield_comparator_simulated(tmp_path):
+    """LidoYieldComparator returns valid result in simulation mode."""
+    from aegis.analytics import LidoYieldComparator
+    mem = SharedMemory(workspace_dir=str(tmp_path))
+    client = UniswapV3Client(chain="ethereum")
+    comparator = LidoYieldComparator(mem, client)
+    result = await comparator.compare()
+    assert "lp_apr_pct" in result
+    assert "staking_apr_pct" in result
+    assert "recommendation" in result
+    assert result["recommendation"] in ("lp", "stake")
+    assert "spread_pct" in result
+    assert "reasoning" in result
+
+
+@pytest.mark.asyncio
+async def test_cross_pool_allocator_simulated(tmp_path):
+    """CrossPoolAllocator returns valid result in simulation mode."""
+    from aegis.analytics import CrossPoolAllocator
+    mem = SharedMemory(workspace_dir=str(tmp_path))
+    client = UniswapV3Client(chain="ethereum")
+    allocator = CrossPoolAllocator(mem, client)
+    result = await allocator.allocate()
+    assert "allocations" in result
+    assert "strategy_name" in result
+
+
+# ── Dry-Run TX Event Tests ───────────────────────────────────────
+
+def test_dry_run_tx_event_type_exists():
+    """DRY_RUN_TX event type exists in EventType enum."""
+    assert EventType.DRY_RUN_TX.value == "dry_run_tx"
+
+
+def test_mev_detected_event_type_exists():
+    """MEV_DETECTED event type exists in EventType enum."""
+    assert EventType.MEV_DETECTED.value == "mev_detected"
+
+
+def test_mev_cleared_event_type_exists():
+    """MEV_CLEARED event type exists in EventType enum."""
+    assert EventType.MEV_CLEARED.value == "mev_cleared"
+
+
+def test_backtest_result_event_type_exists():
+    """BACKTEST_RESULT event type exists in EventType enum."""
+    assert EventType.BACKTEST_RESULT.value == "backtest_result"
+
+
+def test_ens_resolved_event_type_exists():
+    """ENS_RESOLVED event type exists in EventType enum."""
+    assert EventType.ENS_RESOLVED.value == "ens_resolved"
+
+
+# ── Wallet Tests ─────────────────────────────────────────────────
+
+def test_wallet_imports():
+    """Wallet module imports without error."""
+    from aegis.wallet import AegisWallet, SEPOLIA_CHAIN_ID
+    assert AegisWallet is not None
+    assert SEPOLIA_CHAIN_ID == 11155111
+
+
+def test_wallet_no_key(monkeypatch):
+    """AegisWallet without private key is not available."""
+    monkeypatch.delenv("WALLET_PRIVATE_KEY", raising=False)
+    from aegis.wallet import AegisWallet
+    wallet = AegisWallet(private_key="")
+    assert not wallet.available
+    assert wallet.address == ""
+
+
+def test_wallet_rejects_mainnet():
+    """AegisWallet rejects transactions with mainnet chainId."""
+    from aegis.wallet import AegisWallet
+    wallet = AegisWallet.__new__(AegisWallet)
+    wallet._key = ""
+    wallet._w3 = None
+    wallet._account = None
+    wallet.address = ""
+    wallet.available = False
+    with pytest.raises(ValueError, match="SAFETY"):
+        wallet._assert_testnet(1)
+
+
+def test_wallet_allows_sepolia():
+    """AegisWallet allows Sepolia chainId."""
+    from aegis.wallet import AegisWallet
+    wallet = AegisWallet.__new__(AegisWallet)
+    wallet._assert_testnet(11155111)
+
+
+# ── Swap Execution Tests ─────────────────────────────────────────
+
+def test_grow_agent_has_swap_fields(tmp_path):
+    """Grow agent status includes swap execution fields."""
+    from aegis.agents.grow import GrowAgent
+    mem = SharedMemory(workspace_dir=str(tmp_path))
+    client = UniswapV3Client(chain="ethereum")
+    agent = GrowAgent(GrowConfig(), mem, client)
+    status = agent.status
+    assert "last_swap_tx" in status
+    assert "total_swaps_executed" in status
+    assert status["total_swaps_executed"] == 0
+
+
+def test_sepolia_in_chain_ids():
+    """Sepolia is in CHAIN_IDS mapping."""
+    assert "sepolia" in CHAIN_IDS
+    assert CHAIN_IDS["sepolia"] == 11155111
+
+
+def test_sepolia_tokens_defined():
+    """Sepolia tokens are defined in TOKENS."""
+    assert 11155111 in TOKENS
+    assert "WETH" in TOKENS[11155111]
+    assert "USDC" in TOKENS[11155111]
+
+
+def test_agent_json_exists():
+    """agent.json manifest exists and has required fields."""
+    import json
+    from pathlib import Path
+    agent_json = Path("agent.json")
+    assert agent_json.exists(), "agent.json missing"
+    data = json.loads(agent_json.read_text())
+    assert "name" in data
+    assert "description" in data
+    assert "agentWallet" in data
+    assert "agents" in data
+    assert len(data["agents"]) == 5
+
+
+@pytest.mark.asyncio
+async def test_execute_swap_no_api():
+    """execute_swap returns error when API not configured."""
+    from aegis.orchestrator import AegisOrchestrator
+    orch = AegisOrchestrator()
+    result = await orch.execute_swap()
+    assert "error" in result
