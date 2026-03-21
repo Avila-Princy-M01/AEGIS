@@ -96,5 +96,25 @@
       "api": "trade-api.gateway.uniswap.org/v1/swap",
       "reasoning": "Compound cycle: swapped 0.001 ETH → 5.55 USDC via Uniswap Trading API on Sepolia testnet"
     }
+  },
+  {
+    "timestamp": "2025-07-19T07:45:00Z",
+    "agent": "grow",
+    "action": "swap_executed",
+    "data": {
+      "tx_hash": "0xdc3ab4f3e67ce95fda153bcba84454dfcbf782cd20bbcfd73a14946650621acb",
+      "explorer_url": "https://sepolia.etherscan.io/tx/0xdc3ab4f3e67ce95fda153bcba84454dfcbf782cd20bbcfd73a14946650621acb",
+      "token_in": "ETH (native)",
+      "token_out": "USDC",
+      "amount_in": "2000000000000000",
+      "chain_id": 11155111,
+      "block_number": 10491851,
+      "gas_used": 115304,
+      "status": "confirmed",
+      "routing": "CLASSIC",
+      "route": [{"type": "v3-pool", "fee": "10000", "tokenIn": "WETH", "tokenOut": "USDC"}],
+      "api": "trade-api.gateway.uniswap.org/v1/swap",
+      "reasoning": "Compound cycle #2: swapped 0.002 ETH → USDC via Uniswap Trading API on Sepolia testnet — additional on-chain proof"
+    }
   }
 ]

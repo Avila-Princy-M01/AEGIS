@@ -160,6 +160,66 @@
 
 ---
 
+## Phase 11: Self-Custody Transfer & ERC-8004 Registration
+
+**Agent:** Completed the hackathon registration flow:
+- Called Synthesis API to initiate self-custody transfer to wallet `0x9aC234De759456f2b65FB7C182CFCE013889390A`
+- Confirmed transfer — ERC-8004 NFT minted on Base Mainnet
+- TxHash: `0x83ab89d5cbcd811230cdf85af79f023bdb3cfd20b0e5472e55f1669771f1bcae`
+- Registered agent identity as `aegis-guardian` with participant ID `6ff8d7e7ffc942c58400d97b1264e1e0`
+- Created `agent.json` manifest following ERC-8004 registration-v1 spec
+- Created `agent_log.json` structured execution log with seeded entries
+
+**Key Artifact:** On-chain agent identity — permanent, verifiable, independent of any platform.
+
+---
+
+## Phase 12: Real Testnet Swap Execution
+
+**Human:** "Get Sepolia ETH and execute real swap"
+
+**Agent:** Orchestrated the full swap flow:
+1. User funded wallet with 0.05 Sepolia ETH from Google Cloud faucet
+2. Fixed `wallet.py` to handle hex string values from Uniswap API (added `_parse_int()` method)
+3. Discovered native ETH (zero address) must be used as tokenIn for automatic WRAP_ETH
+4. **Swap 1:** 0.001 ETH → 5.55 USDC — TxHash: `0x83087cd184dd637b85594e10928e2cc9e255cd847c2875e1275c57d1f79591fe` (block 10491702)
+5. **Swap 2:** 0.002 ETH → USDC — TxHash: `0xdc3ab4f3e67ce95fda153bcba84454dfcbf782cd20bbcfd73a14946650621acb` (block 10491851)
+
+**Breakthrough:** The Uniswap Trading API returns `value` as hex strings (e.g., `0x038d7ea4c68000`), but web3.py expects integers. The `_parse_int()` utility transparently handles hex/decimal/int conversion.
+
+**Result:** 2 real, confirmed, on-chain swap transactions on Sepolia — verifiable by anyone on Etherscan.
+
+---
+
+## Phase 13: Project Submission & Track Registration
+
+**Agent:** Created the project on the Synthesis hackathon platform:
+- Project UUID: `463b2d38fe8d4a00a446d61856b228d6`
+- Registered for 5 tracks: Uniswap API, Open Track, Student Founder's Bet, ERC-8004, Agent Cook
+- Git committed 41 files (4977 insertions) and pushed to GitHub
+- All code, manifests, logs, and transaction records are public
+
+**Note:** Project created as draft — not yet published pending final README polish and video demo.
+
+---
+
+## Phase 14: Final Documentation & Video Preparation
+
+**Human:** "Make the README comprehensive with hackathon theme alignment, swap proof, and video guide"
+
+**Agent:** Rewrote README.md to be hackathon-focused:
+- Added On-Chain Proof section with all 5 verifiable transaction hashes
+- Added Theme Alignment section mapping AEGIS to all 3 Synthesis themes
+- Added Sponsor Track Integration table (Uniswap, Protocol Labs, Lido, ENS, Open)
+- Added comparison table showing AEGIS vs typical hackathon projects
+- Added image placeholders for screenshots and video demo link
+- Created VIDEO_DEMO_GUIDE.md with shot-by-shot recording script
+- Updated CONVERSATION_LOG.md to document the full collaboration narrative
+
+**Philosophy:** Judges who don't run the code should still be able to verify everything from the README alone — every claim is backed by an on-chain link.
+
+---
+
 ## Key Technical Decisions
 
 | Decision | Reasoning |
@@ -185,8 +245,26 @@ User Command → NLP Parser (Groq) → Orchestrator
   ├── Legacy Agent       ← dead man's switch + ENS resolution
   ├── Analytics Engine   ← Lido yield, cross-pool alloc, backtesting
   ├── Uniswap Trading API ← real swap quotes + execution (load-bearing)
+  │     ├── /quote       ← optimal routing across v3/v4 pools
+  │     ├── /swap        ← calldata generation for on-chain execution
+  │     └── /check_approval ← token allowance verification
   ├── AegisWallet        ← Sepolia testnet signing + broadcasting
+  │     ├── _parse_int() ← hex/decimal/int transparent conversion
+  │     ├── send_transaction() ← builds, signs, broadcasts via web3.py
+  │     └── Sepolia guard ← hard reject if chainId ≠ 11155111
+  ├── ERC-8004 Identity  ← on-chain agent registration on Base Mainnet
   └── React Dashboard    ← WebSocket + REST, 6 panels + swap execution UI
+```
+
+**Swap Execution Flow:**
+```
+Grow Agent compound trigger
+  → Uniswap Trading API /quote (get optimal route)
+  → Uniswap Trading API /swap (get calldata + tx params)
+  → AegisWallet._parse_int() (normalize hex values)
+  → AegisWallet.send_transaction() (sign + broadcast)
+  → Sepolia RPC (confirm on-chain)
+  → TxHash logged to TXIDS.md + agent_log.json
 ```
 
 ---

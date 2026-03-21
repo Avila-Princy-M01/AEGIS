@@ -19,6 +19,7 @@
 | # | Pair | Amount | TxID | Status |
 |---|------|--------|------|--------|
 | 1 | ETH → USDC | 0.001 ETH (5.55 USDC) | [`0x83087cd184dd637b...`](https://sepolia.etherscan.io/tx/0x83087cd184dd637b85594e10928e2cc9e255cd847c2875e1275c57d1f79591fe) | ✅ Confirmed (block 10491702) |
+| 2 | ETH → USDC | 0.002 ETH | [`0xdc3ab4f3e67ce95f...`](https://sepolia.etherscan.io/tx/0xdc3ab4f3e67ce95fda153bcba84454dfcbf782cd20bbcfd73a14946650621acb) | ✅ Confirmed (block 10491851) |
 
 ### How to Execute a Swap
 
