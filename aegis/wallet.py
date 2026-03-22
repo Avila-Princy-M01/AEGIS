@@ -120,12 +120,22 @@ class AegisWallet:
             import asyncio
 
             nonce = await asyncio.to_thread(
-                self._w3.eth.get_transaction_count, self.address
+                self._w3.eth.get_transaction_count, self.address, "pending"
             )
 
             gas = self._parse_int(
                 tx_data.get("gas", tx_data.get("gasLimit", 300000))
             )
+
+            base_fee, priority_fee = await self._get_dynamic_gas()
+
+            if "maxFeePerGas" in tx_data:
+                max_fee = self._parse_int(tx_data["maxFeePerGas"])
+            else:
+                max_fee = base_fee * 2 + priority_fee
+
+            if "maxPriorityFeePerGas" in tx_data:
+                priority_fee = self._parse_int(tx_data["maxPriorityFeePerGas"])
 
             tx = {
                 "from": self.address,
@@ -135,14 +145,9 @@ class AegisWallet:
                 "chainId": SEPOLIA_CHAIN_ID,
                 "nonce": nonce,
                 "gas": gas,
-                "maxFeePerGas": self._w3.to_wei("5", "gwei"),
-                "maxPriorityFeePerGas": self._w3.to_wei("2", "gwei"),
+                "maxFeePerGas": max_fee,
+                "maxPriorityFeePerGas": priority_fee,
             }
-
-            if "maxFeePerGas" in tx_data:
-                tx["maxFeePerGas"] = self._parse_int(tx_data["maxFeePerGas"])
-            if "maxPriorityFeePerGas" in tx_data:
-                tx["maxPriorityFeePerGas"] = self._parse_int(tx_data["maxPriorityFeePerGas"])
 
             signed = self._account.sign_transaction(tx)
 
@@ -168,6 +173,31 @@ class AegisWallet:
         except Exception as exc:
             logger.warning("Transaction failed: %s", exc)
             return {"error": f"Transaction failed: {exc}"}
+
+    async def _get_dynamic_gas(self) -> tuple[int, int]:
+        """Fetch current base fee and priority fee from the network.
+
+        Returns (base_fee_wei, priority_fee_wei) with sensible Sepolia defaults
+        if the RPC call fails.
+        """
+        import asyncio
+        default_base = self._w3.to_wei("10", "gwei")
+        default_priority = self._w3.to_wei("2", "gwei")
+        try:
+            latest = await asyncio.to_thread(
+                self._w3.eth.get_block, "latest"
+            )
+            base_fee = latest.get("baseFeePerGas", default_base)
+            try:
+                priority_fee = await asyncio.to_thread(
+                    lambda: self._w3.eth.max_priority_fee
+                )
+            except Exception:
+                priority_fee = default_priority
+            return base_fee, priority_fee
+        except Exception as exc:
+            logger.debug("Dynamic gas fetch failed: %s — using defaults", exc)
+            return default_base, default_priority
 
     async def wait_for_receipt(self, tx_hash: str, timeout: int = 60) -> dict[str, Any]:
         """Wait for a transaction receipt."""

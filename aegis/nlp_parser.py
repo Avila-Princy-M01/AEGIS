@@ -69,7 +69,8 @@ async def parse_command(command: str, api_key: str | None = None, model: str = "
     if not keys:
         return _fallback_parse(command)
 
-    for key in keys:
+    last_exc: Exception | None = None
+    for i, key in enumerate(keys):
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(
@@ -92,12 +93,32 @@ async def parse_command(command: str, api_key: str | None = None, model: str = "
             parsed = _extract_json(text)
             return _dict_to_config(parsed)
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == 429:
-                logger.warning("Groq rate-limited on key ...%s — trying next key", key[-4:])
-                continue
-            raise
+            last_exc = exc
+            status = exc.response.status_code
+            logger.warning(
+                "Groq HTTP %d on key ...%s (%d/%d) — %s",
+                status, key[-4:], i + 1, len(keys),
+                "trying next key" if i < len(keys) - 1 else "no more keys",
+            )
+            continue
+        except (httpx.ConnectError, httpx.TimeoutException) as exc:
+            last_exc = exc
+            logger.warning(
+                "Groq network error on key ...%s (%d/%d): %s — %s",
+                key[-4:], i + 1, len(keys), type(exc).__name__,
+                "trying next key" if i < len(keys) - 1 else "no more keys",
+            )
+            continue
+        except Exception as exc:
+            last_exc = exc
+            logger.warning(
+                "Groq unexpected error on key ...%s (%d/%d): %s — %s",
+                key[-4:], i + 1, len(keys), exc,
+                "trying next key" if i < len(keys) - 1 else "no more keys",
+            )
+            continue
 
-    logger.warning("All Groq API keys exhausted — falling back to keyword parser")
+    logger.warning("All %d Groq API keys exhausted (last error: %s) — falling back to keyword parser", len(keys), last_exc)
     return _fallback_parse(command)
 
 

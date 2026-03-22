@@ -289,30 +289,41 @@ class UniswapV3Client:
         else:
             self._rpc_urls = list(preset.get("rpc_fallbacks", [preset["rpc_public"]]))
 
-        rpc_url = self._rpc_urls[0]
+        connected = False
+        for idx, rpc_url in enumerate(self._rpc_urls):
+            try:
+                self._w3 = Web3(HTTPProvider(rpc_url, request_kwargs={"timeout": 15}))
+                if self._w3.is_connected():
+                    self._rpc_index = idx
+                    connected = True
+                    break
+                else:
+                    logger.debug("RPC %s not reachable — trying next", rpc_url)
+            except Exception as exc:
+                logger.debug("RPC %s failed: %s — trying next", rpc_url, exc)
 
-        try:
-            self._w3 = Web3(HTTPProvider(rpc_url, request_kwargs={"timeout": 10}))
-            if self._w3.is_connected():
-                self.live = True
-                self._pool_address = preset["default_pool"]
-                self._token_pair = preset["pool_label"]
-                self._token0_decimals = preset["token0_decimals"]
-                self._token1_decimals = preset["token1_decimals"]
-                self._invert_price = preset.get("invert_price", True)
-                self._rebuild_contracts(preset)
-                logger.info(
-                    "Connected to %s — monitoring %s (%s) + %d pools [%d RPC fallbacks]",
-                    chain,
-                    self._token_pair,
-                    self._pool_address[:10] + "...",
-                    len(self._pool_contracts),
-                    len(self._rpc_urls),
-                )
-            else:
-                logger.warning("RPC not reachable — running in simulation mode")
-        except Exception as exc:
-            logger.warning("Failed to connect to %s RPC: %s — simulation mode", chain, exc)
+        if connected:
+            self.live = True
+            self._pool_address = preset["default_pool"]
+            self._token_pair = preset["pool_label"]
+            self._token0_decimals = preset["token0_decimals"]
+            self._token1_decimals = preset["token1_decimals"]
+            self._invert_price = preset.get("invert_price", True)
+            self._rebuild_contracts(preset)
+            logger.info(
+                "Connected to %s via %s — monitoring %s (%s) + %d pools [%d RPC fallbacks]",
+                chain,
+                self._rpc_urls[self._rpc_index],
+                self._token_pair,
+                self._pool_address[:10] + "...",
+                len(self._pool_contracts),
+                len(self._rpc_urls),
+            )
+        else:
+            logger.warning(
+                "All %d RPC endpoints unreachable for %s — running in simulation mode",
+                len(self._rpc_urls), chain,
+            )
 
     def _rebuild_contracts(self, preset: dict[str, Any] | None = None) -> None:
         """Rebuild all contract instances from the current Web3 provider."""
