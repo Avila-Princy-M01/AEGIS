@@ -113,6 +113,7 @@ class AegisOrchestrator:
         alchemy_key = self.config.chain.alchemy_api_key or os.environ.get("ALCHEMY_API_KEY", "")
 
         self.uniswap = UniswapV3Client(chain=chain, alchemy_key=alchemy_key)
+        await self._seed_initial_price()
 
         uniswap_api_key = os.environ.get("UNISWAP_API_KEY", "")
         self._uniswap_api = UniswapTradingAPI(api_key=uniswap_api_key) if uniswap_api_key else None
@@ -260,6 +261,7 @@ class AegisOrchestrator:
         alchemy_key = self.config.chain.alchemy_api_key or os.environ.get("ALCHEMY_API_KEY", "")
 
         self.uniswap = UniswapV3Client(chain=chain, alchemy_key=alchemy_key)
+        await self._seed_initial_price()
 
         uniswap_api_key = os.environ.get("UNISWAP_API_KEY", "")
         self._uniswap_api = UniswapTradingAPI(api_key=uniswap_api_key) if uniswap_api_key else None
@@ -390,6 +392,30 @@ class AegisOrchestrator:
             )
         except Exception as exc:
             logger.debug("Failed to save agent_log.json: %s", exc)
+
+    async def _seed_initial_price(self) -> None:
+        """Fetch ETH price immediately so the chart renders without waiting for Guard."""
+        if not self.uniswap or not self.uniswap.live:
+            return
+        try:
+            state = await self.uniswap.get_pool_state()
+            if state and state.eth_price_usd > 0:
+                price_str = str(state.eth_price_usd)
+                self._eth_price = price_str
+                now = time.time()
+                self._price_history = [
+                    {"price": price_str, "timestamp": now - 3},
+                    {"price": price_str, "timestamp": now},
+                ]
+                block = await self.uniswap.get_block_number()
+                if block > 0:
+                    self._block_number = block
+                    self._rpc_status = "connected"
+                gas = await self.uniswap.get_gas_price_gwei()
+                if gas > 0:
+                    self._gas_price_gwei = str(gas)
+        except Exception as exc:
+            logger.debug("Initial price seed failed: %s", exc)
 
     async def _track_price_history(self) -> None:
         """Background task to record price snapshots and chain stats."""
