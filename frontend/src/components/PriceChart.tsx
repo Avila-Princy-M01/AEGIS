@@ -31,7 +31,8 @@ export function PriceChart({ data, width = 320, height = 60 }: Props) {
   const prices = data.map(d => parseFloat(d.price))
   const min = Math.min(...prices)
   const max = Math.max(...prices)
-  const range = max - min || 1
+  const isFlat = max - min === 0
+  const range = isFlat ? 1 : max - min
 
   const padding = 2
   const chartW = width - padding * 2
@@ -39,7 +40,9 @@ export function PriceChart({ data, width = 320, height = 60 }: Props) {
 
   const points = prices.map((p, i) => {
     const x = padding + (i / (prices.length - 1)) * chartW
-    const y = padding + chartH - ((p - min) / range) * chartH
+    const y = isFlat
+      ? padding + chartH / 2
+      : padding + chartH - ((p - min) / range) * chartH
     return `${x},${y}`
   })
 
@@ -54,7 +57,9 @@ export function PriceChart({ data, width = 320, height = 60 }: Props) {
   const areaPoints = `${padding},${padding + chartH} ${polyline} ${padding + chartW},${padding + chartH}`
 
   const lastX = padding + chartW
-  const lastY = padding + chartH - ((lastPrice - min) / range) * chartH
+  const lastY = isFlat
+    ? padding + chartH / 2
+    : padding + chartH - ((lastPrice - min) / range) * chartH
 
   return (
     <div className="price-chart-container" style={{ width: '100%' }}>
