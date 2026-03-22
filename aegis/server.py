@@ -40,8 +40,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+import httpx
+
 from aegis.memory import MemoryEvent
 from aegis.orchestrator import AegisOrchestrator
+
+KEEP_ALIVE_INTERVAL = 600  # 10 minutes
 
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
@@ -121,10 +125,26 @@ def _on_memory_event(event: MemoryEvent) -> None:
         pass
 
 
+async def _keep_alive() -> None:
+    """Ping our own /api/status every 10 min to prevent Render free-tier sleep."""
+    port = int(os.environ.get("PORT", 8000))
+    external = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{port}")
+    url = f"{external}/api/status"
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        while True:
+            await asyncio.sleep(KEEP_ALIVE_INTERVAL)
+            try:
+                await client.get(url)
+            except Exception:
+                pass
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     orchestrator.memory.subscribe(_on_memory_event)
+    ping_task = asyncio.create_task(_keep_alive())
     yield
+    ping_task.cancel()
     await orchestrator.stop()
 
 
