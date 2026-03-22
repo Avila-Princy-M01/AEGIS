@@ -17,22 +17,15 @@ AEGIS is an autonomous multi-agent system built for **The Synthesis Hackathon** 
 
 ## 🎥 Demo Video
 
-<!-- Replace YOUR_VIDEO_LINK_HERE with your actual video URL after recording -->
-<!-- [![AEGIS Demo](assets/landing.png)](YOUR_VIDEO_LINK_HERE) -->
+[![Watch AEGIS Demo](https://img.shields.io/badge/▶_Watch_Demo-Google_Drive-red?style=for-the-badge&logo=googledrive)](https://drive.google.com/file/d/1raQBRdaqAgm8XiokRDl5Qk8baD4MJviX/view?usp=sharing)
 
-> 📹 **Video coming soon** — See [VIDEO_DEMO_GUIDE.md](VIDEO_DEMO_GUIDE.md) for the shot-by-shot recording script.
+> 🌐 **Live App:** [aegis-pnv9.onrender.com](https://aegis-pnv9.onrender.com)
 
 ---
 
-## 📸 Screenshots
+## 📸 Demo
 
-| Landing Page | Dashboard — Live Agents |
-|:---:|:---:|
-| ![Landing](assets/landing.png) | ![Dashboard](assets/dashboard1.png) |
-
-| Dashboard — Agent Panels |
-|:---:|
-| ![Panels](assets/dashboard2.png) |
+![AEGIS Demo](assets/landing.gif)
 
 ---
 
@@ -197,30 +190,30 @@ All five agents share intelligence through **shared memory**:
 
 ```mermaid
 flowchart TB
-    User["👤 User: Natural Language Command"] --> NLP["🧠 NLP Parser (Groq LLM)"]
-    NLP --> Orch["⚙️ AEGIS Orchestrator"]
-    Orch --> Guard["🛡️ Guard Agent — Live IL + P&L"]
-    Orch --> Grow["📈 Grow Agent — Gas-Aware Compounding"]
-    Orch --> Rebal["🎯 Rebalance Agent — Range Detection"]
-    Orch --> MEV["🥪 MEV Agent — Sandwich Detection"]
-    Orch --> Legacy["🏛️ Legacy Agent — ENS Dead Man's Switch"]
-    
-    Guard <--> Memory["💾 Shared Memory (pub/sub)"]
+    User["User: Natural Language Command"] --> NLP["NLP Parser - Groq LLM"]
+    NLP --> Orch["AEGIS Orchestrator"]
+    Orch --> Guard["Guard Agent - Live IL + PnL"]
+    Orch --> Grow["Grow Agent - Gas-Aware Compounding"]
+    Orch --> Rebal["Rebalance Agent - Range Detection"]
+    Orch --> MEV["MEV Agent - Sandwich Detection"]
+    Orch --> Legacy["Legacy Agent - ENS Dead Mans Switch"]
+
+    Guard <--> Memory["Shared Memory - pub/sub"]
     Grow <--> Memory
     Rebal <--> Memory
     MEV <--> Memory
     Legacy <--> Memory
-    
-    Orch --> Uni["🦄 UniswapV3Client (web3.py)"]
-    Orch --> UniAPI["🔄 Uniswap Trading API /v1/swap"]
-    Orch --> ENS["🔗 ENS Resolver — .eth → 0x..."]
-    Orch --> Analytics["📊 Analytics — Lido/Pools/Backtest"]
-    Orch --> Identity["🧾 ERC-8004 — Base Mainnet Identity"]
-    Orch --> Dash["📊 React Dashboard (WebSocket + REST)"]
-    
-    Uni --> ETH["🟣 Ethereum — 5 pools"]
-    Uni --> BASE["🔵 Base — 1 pool"]
-    UniAPI --> SEP["🟡 Sepolia — live swap execution"]
+
+    Orch --> Uni["UniswapV3Client - web3.py"]
+    Orch --> UniAPI["Uniswap Trading API /v1/swap"]
+    Orch --> ENS["ENS Resolver"]
+    Orch --> Analytics["Analytics - Lido/Pools/Backtest"]
+    Orch --> Identity["ERC-8004 - Base Mainnet Identity"]
+    Orch --> Dash["React Dashboard - WebSocket + REST"]
+
+    Uni --> ETH["Ethereum Mainnet - 5 pools"]
+    Uni --> BASE["Base L2 - 1 pool"]
+    UniAPI --> SEP["Sepolia - live swap execution"]
 ```
 
 <details>
@@ -284,7 +277,7 @@ cd frontend && npm install && npm run dev
 
 ### 5. Open the Dashboard
 
-Visit **http://localhost:5173** and type your command. You will see a 🟢 **LIVE** indicator when connected to real on-chain data.
+Visit **http://localhost:5173** (or the live deployment at [aegis-pnv9.onrender.com](https://aegis-pnv9.onrender.com)) and type your command. You will see a 🟢 **LIVE** indicator when connected to real on-chain data.
 
 ### 6. Execute a Real Swap (Uniswap Bounty Proof)
 

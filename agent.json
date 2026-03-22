@@ -2,11 +2,11 @@
   "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
   "name": "aegis-guardian",
   "description": "AEGIS — 5 coordinated AI agents protecting Uniswap V3 LP positions. Guard (IL monitoring), Grow (gas-aware fee compounding via Uniswap Trading API), Rebalance (range drift detection), MEV Shield (sandwich attack detection), Legacy (dead man's switch with ENS). Real on-chain data via web3.py. Lido yield comparison, cross-pool allocation, backtesting. 4 PyVax smart contracts. Sepolia testnet swap execution.",
-  "image": "https://raw.githubusercontent.com/Avila-Princy-M01/AEGIS/main/assets/landing.png",
+  "image": "https://raw.githubusercontent.com/Avila-Princy-M01/AEGIS/main/assets/landing.gif",
   "endpoints": {
-    "api": "http://localhost:8000/api",
-    "websocket": "ws://localhost:8000/ws/feed",
-    "dashboard": "http://localhost:5173"
+    "api": "https://aegis-pnv9.onrender.com/api",
+    "websocket": "wss://aegis-pnv9.onrender.com/ws/feed",
+    "dashboard": "https://aegis-pnv9.onrender.com"
   },
   "agentWallet": "0x9aC234De759456f2b65FB7C182CFCE013889390A",
   "participantId": "6ff8d7e7ffc942c58400d97b1264e1e0",
