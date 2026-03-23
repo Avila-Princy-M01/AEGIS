@@ -90,9 +90,9 @@ AEGIS was designed to satisfy the core hackathon themes head-on:
 
 | Sponsor | Bounty | How AEGIS Uses It |
 |---------|--------|-------------------|
-| **Uniswap** ($5,000) | Agentic Finance | Real `/v1/swap` execution on Sepolia with TxIDs. Grow Agent uses Trading API for reinvestment routes. MEV Agent fetches safe swap routes after sandwich detection. A dedicated **Uniswap Integration Dashboard** fetches live quotes, monitors all pool parameters, and logs real-time swap execution. |
-| **Protocol Labs** ($16,000) | Let the Agent Cook + ERC-8004 | Full autonomous loop: NLP parse → orchestrate → 5 agents execute → logs verified. Features a live **Agent Identity Panel** visualizing ERC-8004 metadata, autonomy metrics, and registry tracking directly on Base Mainnet. |
-| **Lido Labs** ($9,500) | Vault Position Monitor Agent | Monitors wstETH/ETH and stETH/ETH Lido pools live. A dedicated **Lido Monitor Panel** dynamically compares LP APR versus Lido's pure staking APY, providing simple plain-language verdicts to the user. |
+| **Uniswap** ($5,000) | Agentic Finance | Real `/v1/swap` execution on Sepolia with TxIDs. Grow Agent uses Trading API for reinvestment routes. MEV Agent fetches safe swap routes after sandwich detection. SwapQuotePanel fetches live quotes in the dashboard, alongside a dedicated **Uniswap Integration Dashboard** that monitors all pool parameters and logs real-time swap execution. |
+| **Protocol Labs** ($16,000) | Let the Agent Cook + ERC-8004 | Full autonomous loop: NLP parse → orchestrate → 5 agents execute → logs verified. ERC-8004 identity registered on Base, `agent.json` + `agent_log.json` provided. Features a live **Agent Identity Panel** visualizing ERC-8004 metadata, autonomy metrics, and registry tracking directly on Base Mainnet. |
+| **Lido Labs** ($9,500) | Vault Position Monitor Agent | Monitors wstETH/ETH and stETH/ETH Lido pools live. Compares LP APR vs Lido staking APR (3.2%). Guard Agent and Dashboard surface yield changes in plain language, visually supported by a dedicated **Lido Monitor Panel** dynamically comparing LP APR versus Lido's pure staking APY. |
 | **ENS** ($1,500) | ENS Identity | The Legacy Agent resolves `.eth` names (e.g. `family.eth`) to Ethereum addresses for digital inheritance — replacing hex addresses entirely with human-readable identity. |
 | **Synthesis Open Track** ($14,500) | Cross-sponsor coherence | All 4 above sponsors integrated in a single production-grade agent system. No superficial bolt-ons — each integration is load-bearing to core functionality. |
 
