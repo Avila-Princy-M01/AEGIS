@@ -1,4 +1,4 @@
-# AEGIS Demo Script — 60-Second Screen Recording
+# AEGIS Demo Script — 85-Second Screen Recording
 
 ## Setup Before Recording
 1. Start the backend: `python -m aegis.server`
@@ -56,10 +56,20 @@
 - Show assets being distributed to beneficiaries
 - Final frame: "✅ Inheritance complete"
 
-### 0:55–0:60 — Chain Switch
-- Click **🔵 Base** to live-switch chains
-- All 5 agents restart on Base L2
-- Show live data flowing
+### 0:55–1:05 — Real On-Chain Execution Proof
+- Scroll up to the **On-Chain Verification** panel.
+- Hover over or click the "Uniswap Swap #1" and "Uniswap Swap #2" links.
+- Briefly show that these link directly to real Etherscan transaction receipts on the Sepolia Testnet (matching your `TXIDS.md` repository log).
+
+### 1:05–1:15 — Live UI Swap Execution
+- Scroll down to the **Swap Quote / Execute** panel.
+- Enter an amount to swap (e.g., `0.001` WETH to USDC).
+- Point out the "Get Quote" and "Execute Swap" buttons showing the audience that the Uniswap API execution is fully integrated directly into the dashboard.
+
+### 1:15–1:25 — Multi-Chain: Base L2 Integration
+- Click **🔵 Base** in the top navigation bar to live-switch chains.
+- Show the **Agent Identity — ERC-8004** panel update to prove the agent is actively registered on "Base Mainnet".
+- Show all 5 agents gracefully restarting and streaming live pool data directly from the Base L2 network.
 
 ## Tweet Template
 
