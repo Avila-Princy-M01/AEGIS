@@ -16,6 +16,9 @@ import { ParticleBackground } from './components/ParticleBackground'
 import { AnimatedNumber } from './components/AnimatedNumber'
 import { VerificationPanel } from './components/VerificationPanel'
 import { CooperationPanel } from './components/CooperationPanel'
+import { AgentIdentityPanel } from './components/AgentIdentityPanel'
+import { LidoMonitorPanel } from './components/LidoMonitorPanel'
+import { UniswapIntegrationPanel } from './components/UniswapIntegrationPanel'
 
 export default function App() {
   const [status, setStatus] = useState<SystemStatus | null>(null)
@@ -26,6 +29,9 @@ export default function App() {
   const [backtestResults, setBacktestResults] = useState<BacktestResult | null>(null)
   const [lidoYield, setLidoYield] = useState<LidoYieldData | null>(null)
   const [poolAllocation, setPoolAllocation] = useState<PoolAllocationData | null>(null)
+  const [agentIdentity, setAgentIdentity] = useState<import('./types').AgentIdentityData | null>(null)
+  const [lidoMonitor, setLidoMonitor] = useState<import('./types').LidoMonitorData | null>(null)
+  const [uniswapIntegration, setUniswapIntegration] = useState<import('./types').UniswapIntegrationData | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -59,6 +65,9 @@ export default function App() {
       api.runBacktest(30).then(setBacktestResults).catch(() => {})
       api.getLidoYield().then(setLidoYield).catch(() => {})
       api.getPoolAllocation().then(setPoolAllocation).catch(() => {})
+      api.getAgentIdentity().then(setAgentIdentity).catch(() => {})
+      api.getLidoMonitor().then(setLidoMonitor).catch(() => {})
+      api.getUniswapIntegration().then(setUniswapIntegration).catch(() => {})
     } catch (err) {
       console.error('Deploy failed:', err)
     } finally {
@@ -99,6 +108,9 @@ export default function App() {
           api.runBacktest(30).then(setBacktestResults).catch(() => {})
           api.getLidoYield().then(setLidoYield).catch(() => {})
           api.getPoolAllocation().then(setPoolAllocation).catch(() => {})
+          api.getAgentIdentity().then(setAgentIdentity).catch(() => {})
+          api.getLidoMonitor().then(setLidoMonitor).catch(() => {})
+          api.getUniswapIntegration().then(setUniswapIntegration).catch(() => {})
         }
       } catch { /* server not ready yet */ }
     }
@@ -541,6 +553,8 @@ export default function App() {
 
       <VerificationPanel />
 
+      <AgentIdentityPanel data={agentIdentity} />
+
       <div className="panels">
         <GuardPanel status={status?.agents?.guard ?? null} priceHistory={priceHistory} />
         <GrowPanel status={status?.agents?.grow ?? null} />
@@ -550,6 +564,10 @@ export default function App() {
       </div>
 
       <CooperationPanel events={events} />
+
+      <LidoMonitorPanel data={lidoMonitor} />
+
+      <UniswapIntegrationPanel data={uniswapIntegration} />
 
       <SwapQuotePanel chain={status?.chain ?? 'ethereum'} />
 

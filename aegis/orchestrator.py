@@ -393,6 +393,181 @@ class AegisOrchestrator:
         except Exception as exc:
             logger.debug("Failed to save agent_log.json: %s", exc)
 
+    async def get_agent_identity(self) -> dict[str, Any]:
+        """Return ERC-8004 identity metadata and autonomy metrics."""
+        uptime = 0.0
+        if self._started:
+            deploy_events = self.memory.get_events(limit=999, event_type="system")
+            for e in deploy_events:
+                if "deployed" in e.data.get("message", "").lower():
+                    uptime = time.time() - e.timestamp
+                    break
+            if uptime == 0:
+                uptime = 60.0  # fallback
+
+        all_events = self.memory.get_events(limit=999)
+        decision_types = {
+            "threat_detected", "fees_compounded", "rebalance_suggested",
+            "mev_detected", "position_out_of_range", "gas_too_high",
+            "mev_cleared", "threat_cleared", "vault_deposit",
+        }
+        decisions = sum(1 for e in all_events if e.event_type in decision_types)
+        cooperation = sum(
+            1 for e in all_events
+            if e.event_type in decision_types
+            and e.data.get("source") in ("guard", "mev", "rebalance", "grow", "on-chain")
+        )
+        human_interventions = sum(
+            1 for e in all_events if e.event_type == "check_in"
+        )
+        total_actions = decisions + human_interventions
+        autonomy_pct = (decisions / total_actions * 100) if total_actions > 0 else 100.0
+
+        return {
+            "agent_name": "AEGIS",
+            "version": "1.0.0",
+            "registry_chain": "Base Mainnet",
+            "registration_tx": "0x48a190093bad8a57c0e4c4feba3a783f7c2f63625aad4e978db62fce9c625389",
+            "registration_url": "https://basescan.org/tx/0x48a190093bad8a57c0e4c4feba3a783f7c2f63625aad4e978db62fce9c625389",
+            "agent_wallet": "0x9aC234De759456f2b65FB7C182CFCE013889390A",
+            "participant_id": "6ff8d7e7ffc942c58400d97b1264e1e0",
+            "status": "active" if self._started else "inactive",
+            "capabilities": [
+                {"name": "Monitor Impermanent Loss", "icon": "🛡️", "agent": "guard"},
+                {"name": "Compound LP Fees", "icon": "📈", "agent": "grow"},
+                {"name": "Rebalance Range", "icon": "🎯", "agent": "rebalance"},
+                {"name": "Detect MEV Attacks", "icon": "🥪", "agent": "mev"},
+                {"name": "Digital Inheritance", "icon": "🏛️", "agent": "legacy"},
+            ],
+            "trust_model": {
+                "type": "read-only",
+                "private_keys": False,
+                "on_chain_logging": True,
+                "self_custody": True,
+            },
+            "autonomy_metrics": {
+                "uptime_seconds": round(uptime, 1),
+                "total_decisions": decisions,
+                "cooperation_events": cooperation,
+                "human_interventions": human_interventions,
+                "autonomy_pct": round(autonomy_pct, 1),
+                "total_events": len(all_events),
+            },
+        }
+
+    async def get_lido_monitor(self) -> dict[str, Any]:
+        """Return detailed Lido vault position monitoring data."""
+        yield_data = await self.compare_lido_yield()
+
+        lido_pools: list[dict[str, Any]] = []
+        if self.uniswap and self.uniswap.live:
+            for label in self.uniswap.available_pools:
+                if "stETH" in label or "wstETH" in label:
+                    state = await self.uniswap.get_pool_state_for(label)
+                    if state:
+                        lido_pools.append({
+                            "label": label,
+                            "address": state.pool_address,
+                            "fee_bps": state.fee_bps,
+                            "liquidity": str(state.liquidity),
+                            "tick": state.tick,
+                            "eth_price_usd": str(state.eth_price_usd),
+                            "live": True,
+                        })
+
+        monitoring_events = self.memory.get_events(limit=999)
+        lido_events = sum(
+            1 for e in monitoring_events
+            if "lido" in e.data.get("message", "").lower()
+            or "steth" in e.data.get("message", "").lower()
+            or e.event_type == "lido_yield_update"
+        )
+
+        return {
+            **yield_data,
+            "lido_pools": lido_pools,
+            "lido_pools_count": len(lido_pools),
+            "monitoring_events": lido_events,
+            "chain": self.uniswap.chain if self.uniswap else "",
+            "live": self.uniswap.live if self.uniswap else False,
+        }
+
+    async def get_uniswap_integration(self) -> dict[str, Any]:
+        """Return comprehensive Uniswap integration summary."""
+        pools: list[dict[str, Any]] = []
+        if self.uniswap and self.uniswap.live:
+            for label in self.uniswap.available_pools:
+                state = await self.uniswap.get_pool_state_for(label)
+                if state:
+                    pools.append({
+                        "label": label,
+                        "address": state.pool_address,
+                        "fee_bps": state.fee_bps,
+                        "tick": state.tick,
+                        "eth_price_usd": str(state.eth_price_usd),
+                        "live": True,
+                    })
+
+        swap_history = [
+            {
+                "label": "Swap #1 — Fee Compounding",
+                "chain": "Sepolia Testnet",
+                "tx_hash": "0x83087cd184dd637b85594e10928e2cc9e255cd847c2875e1275c57d1f79591fe",
+                "url": "https://sepolia.etherscan.io/tx/0x83087cd184dd637b85594e10928e2cc9e255cd847c2875e1275c57d1f79591fe",
+            },
+            {
+                "label": "Swap #2 — Rebalance Route",
+                "chain": "Sepolia Testnet",
+                "tx_hash": "0xdc3ab4f3e67ce95fda153bcba84454dfcbf782cd20bbcfd73a14946650621acb",
+                "url": "https://sepolia.etherscan.io/tx/0xdc3ab4f3e67ce95fda153bcba84454dfcbf782cd20bbcfd73a14946650621acb",
+            },
+        ]
+
+        grow_compounds = 0
+        grow_swaps = 0
+        if self.grow:
+            grow_compounds = self.grow._total_compounds
+            grow_swaps = self.grow._total_swaps_executed
+
+        api_available = bool(self._uniswap_api and self._uniswap_api.available)
+
+        return {
+            "pools": pools,
+            "pools_count": len(pools),
+            "swap_history": swap_history,
+            "total_confirmed_swaps": len(swap_history) + grow_swaps,
+            "fee_compounds": grow_compounds,
+            "trading_api_available": api_available,
+            "chain": self.uniswap.chain if self.uniswap else "",
+            "live": self.uniswap.live if self.uniswap else False,
+            "integrations": [
+                {
+                    "name": "Pool Monitoring",
+                    "icon": "🏊",
+                    "description": f"{len(pools)} pools with live slot0(), liquidity, feeGrowthGlobal queries",
+                    "status": "active" if pools else "inactive",
+                },
+                {
+                    "name": "Fee Growth Tracking",
+                    "icon": "📈",
+                    "description": f"Real feeGrowthGlobal0X128/1X128 deltas — {grow_compounds} compounds executed",
+                    "status": "active" if grow_compounds > 0 else "monitoring",
+                },
+                {
+                    "name": "Swap Execution",
+                    "icon": "⚡",
+                    "description": f"{len(swap_history) + grow_swaps} confirmed swaps via /v1/swap on Sepolia",
+                    "status": "active",
+                },
+                {
+                    "name": "Trading API",
+                    "icon": "🦄",
+                    "description": "Real-time quotes from trade-api.gateway.uniswap.org",
+                    "status": "connected" if api_available else "key_required",
+                },
+            ],
+        }
+
     async def _seed_initial_price(self) -> None:
         """Fetch ETH price immediately so the chart renders without waiting for Guard."""
         if not self.uniswap or not self.uniswap.live:

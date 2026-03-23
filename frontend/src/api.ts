@@ -89,6 +89,18 @@ export async function runBacktest(days = 30): Promise<import('./types').Backtest
   })
 }
 
+export async function getAgentIdentity(): Promise<import('./types').AgentIdentityData> {
+  return request('/agent-identity')
+}
+
+export async function getLidoMonitor(): Promise<import('./types').LidoMonitorData> {
+  return request('/lido-monitor')
+}
+
+export async function getUniswapIntegration(): Promise<import('./types').UniswapIntegrationData> {
+  return request('/uniswap-integration')
+}
+
 export async function getSwapQuote(
   tokenIn = 'WETH',
   tokenOut = 'USDC',

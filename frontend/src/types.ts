@@ -178,6 +178,91 @@ export interface BacktestResult {
   reasoning: string
 }
 
+export interface AgentCapability {
+  name: string
+  icon: string
+  agent: string
+}
+
+export interface AgentIdentityData {
+  agent_name: string
+  version: string
+  registry_chain: string
+  registration_tx: string
+  registration_url: string
+  agent_wallet: string
+  participant_id: string
+  status: string
+  capabilities: AgentCapability[]
+  trust_model: {
+    type: string
+    private_keys: boolean
+    on_chain_logging: boolean
+    self_custody: boolean
+  }
+  autonomy_metrics: {
+    uptime_seconds: number
+    total_decisions: number
+    cooperation_events: number
+    human_interventions: number
+    autonomy_pct: number
+    total_events: number
+  }
+}
+
+export interface LidoPoolData {
+  label: string
+  address: string
+  fee_bps: number
+  liquidity: string
+  tick: number
+  eth_price_usd: string
+  live: boolean
+}
+
+export interface LidoMonitorData extends LidoYieldData {
+  lido_pools: LidoPoolData[]
+  lido_pools_count: number
+  monitoring_events: number
+  chain: string
+  live: boolean
+}
+
+export interface UniswapPoolInfo {
+  label: string
+  address: string
+  fee_bps: number
+  tick: number
+  eth_price_usd: string
+  live: boolean
+}
+
+export interface UniswapSwapRecord {
+  label: string
+  chain: string
+  tx_hash: string
+  url: string
+}
+
+export interface UniswapIntegrationItem {
+  name: string
+  icon: string
+  description: string
+  status: string
+}
+
+export interface UniswapIntegrationData {
+  pools: UniswapPoolInfo[]
+  pools_count: number
+  swap_history: UniswapSwapRecord[]
+  total_confirmed_swaps: number
+  fee_compounds: number
+  trading_api_available: boolean
+  chain: string
+  live: boolean
+  integrations: UniswapIntegrationItem[]
+}
+
 export interface SystemStatus {
   started: boolean
   live_data?: boolean

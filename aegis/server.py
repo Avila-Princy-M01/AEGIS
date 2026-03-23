@@ -293,6 +293,24 @@ async def run_backtest(req: BacktestRequest) -> dict[str, Any]:
     return await orchestrator.run_backtest(req.days)
 
 
+@app.get("/api/agent-identity")
+async def agent_identity() -> dict[str, Any]:
+    """ERC-8004 agent identity metadata and autonomy metrics."""
+    return await orchestrator.get_agent_identity()
+
+
+@app.get("/api/lido-monitor")
+async def lido_monitor() -> dict[str, Any]:
+    """Lido vault position monitoring with pool-specific data."""
+    return await orchestrator.get_lido_monitor()
+
+
+@app.get("/api/uniswap-integration")
+async def uniswap_integration() -> dict[str, Any]:
+    """Comprehensive Uniswap integration summary."""
+    return await orchestrator.get_uniswap_integration()
+
+
 @app.post("/api/swap-quote")
 async def swap_quote(req: SwapQuoteRequest) -> dict[str, Any]:
     """Get a real swap quote from the Uniswap Trading API."""

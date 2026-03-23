@@ -356,15 +356,18 @@ aegis-uniswap/
 └── frontend/src/           # React + TypeScript dashboard
     ├── App.tsx
     └── components/
-        ├── GuardPanel.tsx      # + Price sparkline chart
-        ├── GrowPanel.tsx       # + Gas price indicator
-        ├── RebalancePanel.tsx  # Range visualization bar
-        ├── MevPanel.tsx        # MEV detection dashboard
+        ├── GuardPanel.tsx            # + Price sparkline chart
+        ├── GrowPanel.tsx             # + Gas price indicator
+        ├── RebalancePanel.tsx        # Range visualization bar
+        ├── MevPanel.tsx              # MEV detection dashboard
         ├── LegacyPanel.tsx
-        ├── BacktestPanel.tsx   # Historical simulation
-        ├── SwapQuotePanel.tsx  # Uniswap Trading API quotes + execute
-        ├── AnalyticsPanel.tsx  # Lido yield + cross-pool
-        ├── PriceChart.tsx      # SVG sparkline component
+        ├── AgentIdentityPanel.tsx    # ERC-8004 identity & autonomy metrics
+        ├── LidoMonitorPanel.tsx      # Lido yield vs LP comparison
+        ├── UniswapIntegrationPanel.tsx # Uniswap pools & swap execution log
+        ├── BacktestPanel.tsx         # Historical simulation
+        ├── SwapQuotePanel.tsx        # Uniswap Trading API quotes + execute
+        ├── AnalyticsPanel.tsx        # Lido yield + cross-pool
+        ├── PriceChart.tsx            # SVG sparkline component
         ├── ActivityFeed.tsx
         ├── CommandInput.tsx
         └── DemoControls.tsx

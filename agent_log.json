@@ -1,36 +1,13 @@
 [
   {
-    "timestamp": "2026-03-22T10:12:34Z",
+    "timestamp": "2026-03-23T07:47:49Z",
     "agent": "orchestrator",
     "action": "deploy",
     "data": {
-      "command": "Protect my ETH/USDC position, compound fees, shield from MEV, and if I'm gone 30 days send everything to family.eth",
+      "command": "Protect my ETH/USDC position, compound fees weekly, alert on 10% IL, 30 day dead man switch",
       "chain": "ethereum",
       "live": true,
       "wallet": "0x9aC234De759456f2b65FB7C182CFCE013889390A"
-    }
-  },
-  {
-    "timestamp": "2026-03-22T10:45:30Z",
-    "agent": "orchestrator",
-    "action": "deploy",
-    "data": {
-      "command": "Protect my ETH/USDC position, compound fees, shield from MEV, and if I'm gone 30 days send everything to family.eth",
-      "chain": "ethereum",
-      "live": false,
-      "wallet": "0x9aC234De759456f2b65FB7C182CFCE013889390A"
-    }
-  },
-  {
-    "timestamp": "2026-03-22T10:49:57Z",
-    "agent": "orchestrator",
-    "action": "swap_executed",
-    "data": {
-      "tx_hash": "0x40f19369228d82ce5b145ec4e876806eec5574c26e8011b8efc2304e1398f69e",
-      "explorer_url": "https://sepolia.etherscan.io/tx/0x40f19369228d82ce5b145ec4e876806eec5574c26e8011b8efc2304e1398f69e",
-      "token_in": "WETH",
-      "token_out": "USDC",
-      "amount": "10000000000000000"
     }
   }
 ]
