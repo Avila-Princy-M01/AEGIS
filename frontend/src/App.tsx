@@ -14,6 +14,8 @@ import { ActivityFeed } from './components/ActivityFeed'
 import { DemoControls } from './components/DemoControls'
 import { ParticleBackground } from './components/ParticleBackground'
 import { AnimatedNumber } from './components/AnimatedNumber'
+import { VerificationPanel } from './components/VerificationPanel'
+import { CooperationPanel } from './components/CooperationPanel'
 
 export default function App() {
   const [status, setStatus] = useState<SystemStatus | null>(null)
@@ -64,12 +66,49 @@ export default function App() {
     }
   }
 
+  const deployedRef = useRef(false)
+
   useEffect(() => {
+    deployedRef.current = deployed
+  }, [deployed])
+
+  useEffect(() => {
+    let cancelled = false
+    async function checkRunning() {
+      try {
+        const s = await api.getStatus()
+        if (cancelled || deployedRef.current) return
+        if (s.started) {
+          setStatus(s)
+          setDeployed(true)
+          wsRef.current = api.connectWebSocket(addEvent)
+          pollRef.current = setInterval(async () => {
+            try {
+              const [st, ph] = await Promise.all([
+                api.getStatus(),
+                api.getPriceHistory(),
+              ])
+              setStatus(st)
+              setPriceHistory(ph)
+            } catch { /* ignore */ }
+          }, 2000)
+          const existingEvents = await api.getEvents(50)
+          setEvents(existingEvents)
+          const ph = await api.getPriceHistory()
+          setPriceHistory(ph)
+          api.runBacktest(30).then(setBacktestResults).catch(() => {})
+          api.getLidoYield().then(setLidoYield).catch(() => {})
+          api.getPoolAllocation().then(setPoolAllocation).catch(() => {})
+        }
+      } catch { /* server not ready yet */ }
+    }
+    checkRunning()
     return () => {
+      cancelled = true
       wsRef.current?.close()
       if (pollRef.current) clearInterval(pollRef.current)
     }
-  }, [])
+  }, [addEvent])
 
   if (!deployed) {
     return (
@@ -403,6 +442,10 @@ export default function App() {
               </button>
             ))}
           </div>
+          <div className="security-badges">
+            <span className="security-badge">🔒 Read-only</span>
+            <span className="security-badge">🛡️ Safety-first</span>
+          </div>
         </div>
         <DemoControls />
       </header>
@@ -496,6 +539,8 @@ export default function App() {
       </div>
       )}
 
+      <VerificationPanel />
+
       <div className="panels">
         <GuardPanel status={status?.agents?.guard ?? null} priceHistory={priceHistory} />
         <GrowPanel status={status?.agents?.grow ?? null} />
@@ -503,6 +548,8 @@ export default function App() {
         <MevPanel status={status?.agents?.mev ?? null} />
         <LegacyPanel status={status?.agents?.legacy ?? null} />
       </div>
+
+      <CooperationPanel events={events} />
 
       <SwapQuotePanel chain={status?.chain ?? 'ethereum'} />
 

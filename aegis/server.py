@@ -40,12 +40,17 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+import logging
+
 import httpx
 
 from aegis.memory import MemoryEvent
 from aegis.orchestrator import AegisOrchestrator
 
+logger = logging.getLogger("aegis.server")
+
 KEEP_ALIVE_INTERVAL = 600  # 10 minutes
+DEFAULT_COMMAND = "Protect my ETH/USDC position, compound fees weekly, alert on 10% IL, 30 day dead man switch"
 
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
@@ -125,8 +130,36 @@ def _on_memory_event(event: MemoryEvent) -> None:
         pass
 
 
+async def _auto_deploy() -> None:
+    """Auto-deploy agents on server startup so judges always see live data.
+
+    Retries up to 5 times with increasing delays to handle transient RPC
+    failures that are common right after a cold start on Render free tier.
+    """
+    await asyncio.sleep(3)
+    for attempt in range(5):
+        if orchestrator._started:
+            return
+        try:
+            api_key = os.environ.get("GROQ_API_KEY", "")
+            await orchestrator.deploy(DEFAULT_COMMAND, api_key=api_key)
+            logger.info("Auto-deployed agents on startup (attempt %d)", attempt + 1)
+            return
+        except Exception as exc:
+            delay = 5 * (attempt + 1)
+            logger.warning(
+                "Auto-deploy attempt %d/5 failed: %s — retrying in %ds",
+                attempt + 1, exc, delay,
+            )
+            await asyncio.sleep(delay)
+    logger.error("Auto-deploy exhausted all retries")
+
+
 async def _keep_alive() -> None:
-    """Ping our own /api/status every 10 min to prevent Render free-tier sleep."""
+    """Ping our own /api/status every 10 min to prevent Render free-tier sleep.
+
+    Also auto-recovers by re-deploying if agents stopped unexpectedly.
+    """
     port = int(os.environ.get("PORT", 8000))
     external = os.environ.get("RENDER_EXTERNAL_URL", f"http://localhost:{port}")
     url = f"{external}/api/status"
@@ -137,13 +170,22 @@ async def _keep_alive() -> None:
                 await client.get(url)
             except Exception:
                 pass
+            if not orchestrator._started:
+                try:
+                    api_key = os.environ.get("GROQ_API_KEY", "")
+                    await orchestrator.deploy(DEFAULT_COMMAND, api_key=api_key)
+                    logger.info("Auto-recovered: re-deployed agents")
+                except Exception:
+                    pass
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     orchestrator.memory.subscribe(_on_memory_event)
     ping_task = asyncio.create_task(_keep_alive())
+    deploy_task = asyncio.create_task(_auto_deploy())
     yield
+    deploy_task.cancel()
     ping_task.cancel()
     await orchestrator.stop()
 
