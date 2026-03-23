@@ -28,7 +28,15 @@ export function PriceChart({ data, width = 320, height = 60 }: Props) {
     )
   }
 
-  const prices = data.map(d => parseFloat(d.price))
+  let prices = data.map(d => parseFloat(d.price))
+  const MAX_POINTS = 60
+  if (prices.length < MAX_POINTS) {
+    const pad = Array(MAX_POINTS - prices.length).fill(prices[0])
+    prices = [...pad, ...prices]
+  } else if (prices.length > MAX_POINTS) {
+    prices = prices.slice(-MAX_POINTS)
+  }
+
   const min = Math.min(...prices)
   const max = Math.max(...prices)
   const isFlat = max - min === 0

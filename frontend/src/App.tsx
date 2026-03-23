@@ -44,6 +44,7 @@ export default function App() {
     try {
       const res = await api.deploy(command)
       setStatus(res.status)
+      sessionStorage.setItem('aegis_deployed', 'true')
       setDeployed(true)
 
       wsRef.current = api.connectWebSocket(addEvent)
@@ -87,7 +88,7 @@ export default function App() {
       try {
         const s = await api.getStatus()
         if (cancelled || deployedRef.current) return
-        if (s.started) {
+        if (s.started && sessionStorage.getItem('aegis_deployed') === 'true') {
           setStatus(s)
           setDeployed(true)
           wsRef.current = api.connectWebSocket(addEvent)
