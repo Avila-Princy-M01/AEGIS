@@ -4,7 +4,7 @@
 
 > **One command. Five AI agents. Real on-chain Uniswap V3 data. Real Sepolia swaps. Zero Solidity required.**
 
-AEGIS is an autonomous multi-agent system built for **The Synthesis Hackathon** ($75K in prizes). Five coordinated AI agents **protect**, **grow**, **rebalance**, **shield from MEV**, and **inherit** your Uniswap V3 LP positions — with **live on-chain integration** querying real pool state from Ethereum Mainnet, Base, and Sepolia testnet.
+AEGIS is an autonomous multi-agent system where five coordinated AI agents **protect**, **grow**, **rebalance**, **shield from MEV**, and **inherit** your Uniswap V3 LP positions — with **live on-chain integration** querying real pool state from Ethereum Mainnet, Base, and Sepolia testnet.
 
 ```
 "Protect my Uniswap positions, compound my fees, shield me from sandwich attacks,
@@ -29,17 +29,15 @@ AEGIS is an autonomous multi-agent system built for **The Synthesis Hackathon** 
 
 ---
 
-## 🏆 On-Chain Proof — Built for The Synthesis
+## 🏆 On-Chain Proof
 
-This project was built during **The Synthesis Hackathon** as a participating agent with a **verified ERC-8004 on-chain identity** on Base Mainnet.
+AEGIS operates with a **verified ERC-8004 on-chain identity** on Base Mainnet.
 
 | Artifact | Proof |
 |----------|-------|
 | **ERC-8004 Agent Registration** | [`0x48a19009...`](https://basescan.org/tx/0x48a190093bad8a57c0e4c4feba3a783f7c2f63625aad4e978db62fce9c625389) (Base Mainnet) |
 | **Self-Custody Transfer** | [`0x83ab89d5...`](https://basescan.org/tx/0x83ab89d5cbcd811230cdf85af79f023bdb3cfd20b0e5472e55f1669771f1bcae) (Base Mainnet) |
 | **Agent Name** | `aegis-guardian` |
-| **Participant ID** | `6ff8d7e7ffc942c58400d97b1264e1e0` |
-| **Team ID** | `43734f07c3624fed835fd96659e01b24` |
 | **Agent Wallet** | `0x9aC234De759456f2b65FB7C182CFCE013889390A` |
 | **Sepolia Swap #1** | [`0x83087cd1...`](https://sepolia.etherscan.io/tx/0x83087cd184dd637b85594e10928e2cc9e255cd847c2875e1275c57d1f79591fe) — 0.001 ETH → 5.55 USDC (block 10491702) |
 | **Sepolia Swap #2** | [`0xdc3ab4f3...`](https://sepolia.etherscan.io/tx/0xdc3ab4f3e67ce95fda153bcba84454dfcbf782cd20bbcfd73a14946650621acb) — 0.002 ETH → USDC (block 10491851) |
@@ -48,59 +46,20 @@ This project was built during **The Synthesis Hackathon** as a participating age
 
 ---
 
-## 🎯 The Synthesis — Theme Alignment
+## 🔌 Protocol Integrations
 
-AEGIS was designed to satisfy the core hackathon themes head-on:
-
-### Theme 1 — "Agents that Pay"
-
-> *"Your agent moves money on your behalf. But how do you know it did what you asked?"*
-
-**AEGIS Answer:** The Grow Agent and MEV Shield Agent execute **real swaps** via the Uniswap Trading API on Sepolia testnet with actual transaction broadcasting. Every action produces a **real TxID** logged on-chain. No payment processor intermediary, no mocked response. The Legacy Agent settles funds to beneficiary addresses (`.eth` ENS names resolved to wallet addresses) through trustless, agent-executed transfers.
-
-- ✅ Real Uniswap API swap execution (`/v1/swap` endpoint)
-- ✅ Signed transactions with `WALLET_PRIVATE_KEY` on Sepolia
-- ✅ Verifiable TxIDs on Etherscan
-- ✅ Gas-aware execution — Grow Agent checks if gas cost exceeds revenue before spending
-
-### Theme 2 — "Agents that Trust"
-
-> *"Your agent interacts with other agents and services, but trust flows through centralized registries."*
-
-**AEGIS Answer:** AEGIS registers its on-chain identity via **ERC-8004 on Base Mainnet**, establishing a verifiable, portable agent identity independent of any platform. The agent system uses **6 fallback RPCs** with automatic rotation so that no single provider can silence or degrade it. Agent actions are structured and logged in `agent_log.json` — verifiable by anyone.
-
-- ✅ ERC-8004 agent identity on Base Mainnet (on-chain, permanent)
-- ✅ `agent.json` manifest for DevSpot compatibility
-- ✅ `agent_log.json` execution log for full auditability
-- ✅ 6-RPC fallback rotation — no single point of failure
-
-### Theme 3 — "Agents that Cooperate"
-
-> *"Your agents make deals on your behalf, but the commitments they enforce are centralized."*
-
-**AEGIS Answer:** AEGIS runs a **5-agent pub/sub shared memory architecture** where agents react to each other in real-time. When the MEV Shield detects a sandwich attack, it broadcasts a threat state that the Guard Agent reads and escalates. This is a genuine multi-agent coordination system — not five isolated API calls wrapped in a loop.
-
-- ✅ Guard ↔ Grow ↔ Rebalance ↔ MEV ↔ Legacy — all connected via shared memory pub/sub
-- ✅ Cross-agent event propagation (crash event pauses Grow + Rebalance simultaneously)
-- ✅ 4 PyVax smart contracts — Guard Vault, Grow Vault, Legacy Will, MEV Shield
-
----
-
-## 🦄 Sponsor Track Integration
-
-| Sponsor | Bounty | How AEGIS Uses It |
-|---------|--------|-------------------|
-| **Uniswap** ($5,000) | Agentic Finance | Real `/v1/swap` execution on Sepolia with TxIDs. Grow Agent uses Trading API for reinvestment routes. MEV Agent fetches safe swap routes after sandwich detection. SwapQuotePanel fetches live quotes in the dashboard, alongside a dedicated **Uniswap Integration Dashboard** that monitors all pool parameters and logs real-time swap execution. |
-| **Protocol Labs** ($16,000) | Let the Agent Cook + ERC-8004 | Full autonomous loop: NLP parse → orchestrate → 5 agents execute → logs verified. ERC-8004 identity registered on Base, `agent.json` + `agent_log.json` provided. Features a live **Agent Identity Panel** visualizing ERC-8004 metadata, autonomy metrics, and registry tracking directly on Base Mainnet. |
-| **Lido Labs** ($9,500) | Vault Position Monitor Agent | Monitors wstETH/ETH and stETH/ETH Lido pools live. Compares LP APR vs Lido staking APR (3.2%). Guard Agent and Dashboard surface yield changes in plain language, visually supported by a dedicated **Lido Monitor Panel** dynamically comparing LP APR versus Lido's pure staking APY. |
-| **ENS** ($1,500) | ENS Identity | The Legacy Agent resolves `.eth` names (e.g. `family.eth`) to Ethereum addresses for digital inheritance — replacing hex addresses entirely with human-readable identity. |
-| **Synthesis Open Track** ($14,500) | Cross-sponsor coherence | All 4 above sponsors integrated in a single production-grade agent system. No superficial bolt-ons — each integration is load-bearing to core functionality. |
+| Protocol | How AEGIS Uses It |
+|----------|-------------------|
+| **Uniswap API** | Real `/v1/swap` execution on Sepolia with TxIDs. Grow Agent uses Trading API for reinvestment routes. SwapQuotePanel fetches live quotes in the dashboard. |
+| **Protocol Labs (ERC-8004)** | Full autonomous loop: NLP parse → orchestrate → 5 agents execute. ERC-8004 identity registered on Base, `agent.json` + `agent_log.json` provided. Features a live **Agent Identity Panel**. |
+| **Lido** | Monitors wstETH/ETH and stETH/ETH Lido pools live. Compares LP APR vs Lido staking APR. Guard Agent and Dashboard surface yield changes in plain language. |
+| **ENS** | The Legacy Agent resolves `.eth` names (e.g. `family.eth`) to Ethereum addresses for digital inheritance — replacing hex addresses entirely with human-readable identity. |
 
 ---
 
 ## ⚡ What Makes AEGIS Different?
 
-Most hackathon projects monitor one metric or solve one problem. AEGIS is different:
+Most open-source projects monitor one metric or solve one problem. AEGIS is different:
 
 | | Other Projects | AEGIS |
 |---|---|---|
@@ -279,7 +238,7 @@ cd frontend && npm install && npm run dev
 
 Visit **http://localhost:5173** (or the live deployment at [aegis-pnv9.onrender.com](https://aegis-pnv9.onrender.com)) and type your command. You will see a 🟢 **LIVE** indicator when connected to real on-chain data.
 
-### 6. Execute a Real Swap (Uniswap Bounty Proof)
+### 6. Execute a Real Swap
 
 ```bash
 curl -X POST http://localhost:8000/api/swap-execute \
@@ -384,15 +343,13 @@ pytest tests/test_core.py -v
 
 ---
 
-## 📋 Key Files for Judges
+## 📋 Key Files
 
 | File | Purpose |
 |------|---------|
 | [`agent.json`](agent.json) | ERC-8004 agent manifest — machine-readable identity |
 | [`agent_log.json`](agent_log.json) | Structured execution log — every agent action with reasoning |
 | [`TXIDS.md`](TXIDS.md) | All on-chain transaction IDs with Etherscan links |
-| [`CONVERSATION_LOG.md`](CONVERSATION_LOG.md) | Full human-agent collaboration narrative |
-| [`VIDEO_DEMO_GUIDE.md`](VIDEO_DEMO_GUIDE.md) | Shot-by-shot video recording instructions |
 
 ---
 
@@ -406,7 +363,7 @@ pytest tests/test_core.py -v
 - **Hex-safe wallet** — `_parse_int()` handles hex/decimal/int from Uniswap API responses
 - **Sepolia-only guard** — wallet module hard-rejects mainnet transactions
 - **Agent reasoning logs** — every cycle, every agent explains *why* it made its decision
-- **Mermaid architecture diagram** — visual system overview for judges
+- **Mermaid architecture diagram** — visual system overview
 
 ---
 
@@ -416,4 +373,4 @@ MIT
 
 ---
 
-*Built for The Synthesis Hackathon with ❤️ — Powered by [Uniswap V3](https://uniswap.org) · [Lido](https://lido.fi) · [ENS](https://ens.domains) · [Base](https://base.org) · [PyVax](https://pyvax.xyz) · [Groq](https://groq.com)*
+*Built with ❤️ — Powered by [Uniswap V3](https://uniswap.org) · [Lido](https://lido.fi) · [ENS](https://ens.domains) · [Base](https://base.org) · [PyVax](https://pyvax.xyz) · [Groq](https://groq.com)*
