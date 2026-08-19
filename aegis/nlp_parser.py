@@ -60,7 +60,7 @@ def _get_groq_keys(primary_key: str | None = None) -> list[str]:
     return keys
 
 
-async def parse_command(command: str, api_key: str | None = None, model: str = "llama-3.3-70b-versatile") -> AegisConfig:
+async def parse_command(command: str, api_key: str | None = None, model: str = "openai/gpt-oss-120b") -> AegisConfig:
     """Parse a natural language command into an AegisConfig.
 
     Tries multiple Groq API keys on rate-limit (429) errors.
