@@ -123,7 +123,7 @@ async def parse_command(command: str, api_key: str | None = None, model: str = "
 
 
 def _extract_json(text: str) -> dict[str, Any]:
-    """Extract a JSON object from LLM output, handling markdown fences."""
+    """Extract a JSON object from LLM output, handling markdown fences and bad JSON."""
     text = text.strip()
     if text.startswith("```"):
         lines = text.split("\n")
@@ -134,7 +134,13 @@ def _extract_json(text: str) -> dict[str, Any]:
         start = text.find("{")
         end = text.rfind("}") + 1
         if start >= 0 and end > start:
-            return json.loads(text[start:end])
+            try:
+                # Attempt to load the JSON block
+                return json.loads(text[start:end])
+            except json.JSONDecodeError:
+                # If it's hopelessly malformed, don't crash, return empty so defaults are used
+                logger.warning("LLM hallucinates bad JSON, falling back to defaults.")
+                return {}
         return {}
 
 
@@ -174,7 +180,8 @@ def _dict_to_config(d: dict[str, Any]) -> AegisConfig:
 
 
 def _fallback_parse(command: str) -> AegisConfig:
-    """Simple keyword-based fallback when no API key is available."""
+    """Keyword-based fallback when no API key is available or all APIs fail."""
+    import re
     config = AegisConfig.default()
     lower = command.lower()
 
@@ -183,6 +190,19 @@ def _fallback_parse(command: str) -> AegisConfig:
         config.guard.impermanent_loss_threshold_pct = Decimal("5.0")
     elif "conservative" in lower:
         config.guard.price_drop_alert_pct = Decimal("25.0")
+        
+    # Attempt to extract explicit percentages for thresholds
+    pct_matches = re.findall(r'(\d+(?:\.\d+)?)\s*(?:%|percent)', lower)
+    if pct_matches:
+        try:
+            val = Decimal(pct_matches[0])
+            if val > 0 and val < 100:
+                # Naive assignment to primary thresholds if a percentage is mentioned
+                config.guard.price_drop_alert_pct = val
+                config.guard.impermanent_loss_threshold_pct = val
+                config.grow.savings_sweep_pct = val
+        except:
+            pass
 
     if "daily" in lower:
         config.grow.compound_frequency_hours = 24
@@ -191,10 +211,13 @@ def _fallback_parse(command: str) -> AegisConfig:
     elif "weekly" in lower:
         config.grow.compound_frequency_hours = 168
 
-    for word in lower.split():
-        if word.startswith("0x") and len(word) >= 42:
+    # Extract all ethereum addresses safely
+    eth_addresses = re.findall(r'(0x[a-f0-9]{40})', lower)
+    for addr in eth_addresses:
+        # Check to avoid duplicates
+        if not any(b.address.lower() == addr for b in config.legacy.beneficiaries):
             config.legacy.beneficiaries.append(
-                Beneficiary(address=word[:42], label="beneficiary")
+                Beneficiary(address=addr, label="beneficiary")
             )
 
     return config

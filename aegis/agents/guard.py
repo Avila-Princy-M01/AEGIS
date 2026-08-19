@@ -32,10 +32,14 @@ class GuardAgent:
         config: GuardConfig,
         memory: SharedMemory,
         uniswap_client: UniswapV3Client,
+        uniswap_api: Any = None,
+        wallet: Any = None,
     ) -> None:
         self.config = config
         self.memory = memory
         self.uniswap = uniswap_client
+        self.uniswap_api = uniswap_api
+        self.wallet = wallet
         self.name = "guard"
         self._running = False
         self._threat_level: str = "safe"  # safe | warning | critical
@@ -173,6 +177,7 @@ class GuardAgent:
             self.memory.publish(EventType.THREAT_DETECTED, self.name, event_data)
 
             if self.config.auto_exit_on_threat:
+                await self._execute_protective_swap("simulated")
                 await asyncio.sleep(1)
                 self.memory.publish(EventType.POSITION_LOCKED, self.name, {
                     "message": "🔒 Positions locked — funds moved to Guard Vault",
@@ -260,6 +265,15 @@ class GuardAgent:
                     "source": "on-chain",
                     "message": f"🚨 LIVE: ETH dropped {price_change_pct_abs.quantize(Decimal('0.1'))}% to ${self._last_price} — IL: {self._il_pct}%",
                 })
+                
+                if self.config.auto_exit_on_threat:
+                    await self._execute_protective_swap("on-chain")
+                    await asyncio.sleep(1)
+                    self.memory.publish(EventType.POSITION_LOCKED, self.name, {
+                        "message": "🔒 Positions locked — protective hedge executed",
+                        "vault_balance": str(self._position_value),
+                    })
+                    self.memory.set_state("positions_locked", True)
 
         price_change_pct: Decimal | None = None
         if old_price > 0:
@@ -312,3 +326,65 @@ class GuardAgent:
             })
 
         self._build_reasoning(price_change_pct)
+
+    async def _execute_protective_swap(self, source: str = "on-chain") -> None:
+        """Execute a live hedge swap to protect against downside."""
+        if not self.uniswap_api or not getattr(self.uniswap_api, "available", False):
+            logger.debug("Cannot execute protective swap: Uniswap API unavailable")
+            return
+        if not self.wallet or not getattr(self.wallet, "available", False):
+            logger.debug("Cannot execute protective swap: Wallet unavailable")
+            return
+
+        try:
+            from aegis.uniswap_api import CHAIN_IDS, TOKENS
+            sepolia_id = CHAIN_IDS.get("sepolia", 11155111)
+            tokens = TOKENS.get(sepolia_id, {})
+            weth = tokens.get("WETH", "")
+            usdc = tokens.get("USDC", "")
+            if not weth or not usdc:
+                return
+
+            # Hedge amount (simulated as 1 WETH for testing)
+            amount_wei = "1000000000000000000"
+
+            swap_result = await self.uniswap_api.execute_swap(
+                token_in=weth,
+                token_out=usdc,
+                amount=amount_wei,
+                wallet_address=self.wallet.address,
+                chain_id=sepolia_id,
+            )
+            if "error" in swap_result:
+                logger.warning("Protective swap quote failed: %s", swap_result["error"])
+                return
+
+            swap_tx = swap_result.get("swap", swap_result)
+            tx_data = {
+                "to": swap_tx.get("to", ""),
+                "data": swap_tx.get("data", swap_tx.get("calldata", "0x")),
+                "value": swap_tx.get("value", "0"),
+                "chainId": sepolia_id,
+                "gas": swap_tx.get("gasLimit", swap_tx.get("gas", 300000)),
+            }
+
+            if not tx_data["to"]:
+                return
+
+            broadcast = await self.wallet.sign_and_send(tx_data)
+            if "error" in broadcast:
+                logger.warning("Protective swap broadcast failed: %s", broadcast["error"])
+                return
+
+            self._reasoning.append(
+                f"🛡️ Hedged WETH to USDC: {broadcast.get('explorer_url', '')}"
+            )
+            logger.info("Protective swap executed: %s", broadcast.get("explorer_url", ""))
+            
+            # Publish event for dashboard
+            self.memory.publish(EventType.SYSTEM, self.name, {
+                "message": f"🛡️ LIVE PROTECT: Executed defensive swap on Sepolia: {broadcast.get('explorer_url', '')}",
+                "tx_hash": broadcast.get("tx_hash", ""),
+            })
+        except Exception as exc:
+            logger.error("Protective swap execution failed: %s", exc)

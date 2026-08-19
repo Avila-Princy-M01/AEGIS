@@ -266,7 +266,7 @@ class AegisOrchestrator:
         uniswap_api_key = os.environ.get("UNISWAP_API_KEY", "")
         self._uniswap_api = UniswapTradingAPI(api_key=uniswap_api_key) if uniswap_api_key else None
 
-        self.guard = GuardAgent(self.config.guard, self.memory, self.uniswap)
+        self.guard = GuardAgent(self.config.guard, self.memory, self.uniswap, uniswap_api=self._uniswap_api, wallet=self._wallet)
         self.grow = GrowAgent(self.config.grow, self.memory, self.uniswap, uniswap_api=self._uniswap_api, wallet=self._wallet)
         self.legacy = LegacyAgent(self.config.legacy, self.memory)
         self.rebalance = RebalanceAgent(self.config.rebalance, self.memory, self.uniswap)
