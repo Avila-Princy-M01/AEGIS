@@ -108,9 +108,9 @@ Most hackathon projects monitor one metric or solve one problem. AEGIS is differ
 | **Identity** | No on-chain presence | **ERC-8004** registered on Base Mainnet |
 | **Data** | Mock data | **Live on-chain** — real `slot0()`, `feeGrowthGlobal`, `eth_gasPrice` |
 | **Scope** | Single-agent, single-problem | **5 coordinated agents** solving 5 distinct LP problems |
-| **Intelligence** | Static rules | **NLP-configured** via Groq LLM + agent reasoning logs every cycle |
+| **Intelligence** | Static rules | **NLP-configured** via Groq LLM + robust Regex fallback (guaranteed boot) |
 | **MEV Protection** | None | **Sandwich detection** via tick swing analysis + Flashbots routing |
-| **Resilience** | Single RPC | **6 fallback RPCs** with automatic rotation on 429 errors |
+| **Resilience** | Single RPC | **6 fallback RPCs** + **Robust NLP JSON fault-tolerance** |
 | **Chains** | Single chain | **Multi-chain** — Ethereum + Base + Sepolia with live switching |
 | **Lido** | No stETH support | **2 Lido pools** monitored (wstETH/ETH + stETH/ETH) |
 | **ENS** | Not integrated | **ENS name resolution** for beneficiary `.eth` addresses |
@@ -122,7 +122,7 @@ Most hackathon projects monitor one metric or solve one problem. AEGIS is differ
 
 | Agent | Role | Key Features |
 |-------|------|--------------|
-| 🛡️ **Guard** | Threat Detection | Live ETH price from `slot0()`, real IL calculation, P&L tracking, auto-exits, price history sparkline |
+| 🛡️ **Guard** | Threat Detection | Live ETH price from `slot0()`, real IL calculation, P&L tracking, **live on-chain protective swap hedging** |
 | 📈 **Grow** | Fee Compounding | Live fee growth tracking, gas-aware compounding, **Uniswap Trading API swap execution** (load-bearing), savings vault |
 | 🎯 **Rebalance** | Range Monitoring | Detects out-of-range positions (the #1 LP pain point), suggests optimal new ranges, animated transitions |
 | 🥪 **MEV Shield** | MEV Protection | Sandwich attack detection via tick swing patterns, front-running via fee growth spikes, dry-run Flashbots routing |
